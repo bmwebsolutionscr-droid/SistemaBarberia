@@ -146,6 +146,10 @@ export default function Navigation({ children }: NavigationProps) {
             <FileText className="w-5 h-5" />
             Reportes
           </Link>
+          <Link href="/dashboard/settings" className={getLinkClasses('/dashboard/settings')}>
+            <Scissors className="w-5 h-5" />
+            Configuración
+          </Link>
         </nav>
 
         {/* User info and logout */}
