@@ -85,7 +85,7 @@ export default function Reports() {
       if (isDateAvailable(date, barbershopConfig)) {
         const dayName = format(date, 'EEEE', { locale: es })
         
-        timeSlots.forEach(time => {
+        timeSlots.forEach((time: string) => {
           slots.push({
             date: format(date, 'yyyy-MM-dd'),
             time,
@@ -353,7 +353,7 @@ export default function Reports() {
           const dayName = format(date, 'EEEE', { locale: es })
           const dateKey = format(date, 'yyyy-MM-dd')
           
-          timeSlots.forEach(time => {
+          timeSlots.forEach((time: string) => {
             const slotDateTime = new Date(`${dateKey} ${time}`)
             if (!isPast(slotDateTime)) {
               // Verificar si el slot está ocupado
@@ -448,8 +448,8 @@ export default function Reports() {
         message += `Ejemplo: "CITA Lunes 09:00"\n\n`
         message += `📍 ${barbershop?.direccion || 'Dirección disponible al agendar'}\n`
         
-        if (barbershop?.whatsapp_numero) {
-          message += `📱 WhatsApp: ${barbershop.whatsapp_numero}\n`
+        if ((barbershop as any)?.whatsapp_numero) {
+          message += `📱 WhatsApp: ${(barbershop as any).whatsapp_numero}\n`
         }
       }
 
