@@ -141,3 +141,8 @@ export function canCancelAppointment(appointmentDate: Date, appointmentTime: str
     return false
   }
 }
+
+export function getDayNameFromDate(date: Date): string {
+  const dayNames = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
+  return dayNames[date.getDay()]
+}

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Navigation from '@/components/Navigation'
 import type { AppointmentWithClient, Client, Barber, Barbershop } from '@/types/supabase'
+import { getBarbershopConfig, generateTimeSlots, isDateAvailable, getDayNameFromDate } from '@/lib/barbershop-config'
+import type { BarbershopConfig } from '@/lib/barbershop-config'
 import { 
   Plus, 
   Edit, 
@@ -12,7 +14,8 @@ import {
   Calendar as CalendarIcon,
   Phone,
   User,
-  ChevronDown
+  ChevronDown,
+  AlertCircle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, parseISO } from 'date-fns'
@@ -34,6 +37,7 @@ export default function AppointmentsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [barbers, setBarbers] = useState<Barber[]>([])
   const [currentBarbershop, setCurrentBarbershop] = useState<Barbershop | null>(null)
+  const [config, setConfig] = useState<BarbershopConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingAppointment, setEditingAppointment] = useState<string | null>(null)
@@ -58,6 +62,10 @@ export default function AppointmentsPage() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user || !user.email) return
+
+      // Cargar configuración de barbería
+      const barbershopConfig = await getBarbershopConfig()
+      setConfig(barbershopConfig)
 
       // Obtener información de la barbería
       const { data: barbershop } = await supabase
@@ -155,6 +163,11 @@ export default function AppointmentsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!currentBarbershop) return
+    
+    // Validar el formulario primero
+    if (!validateForm()) {
+      return
+    }
     
     setLoading(true)
 
@@ -286,6 +299,67 @@ export default function AppointmentsPage() {
       notas: ''
     })
     setEditingAppointment(null)
+  }
+
+  // Validar si una fecha es válida para agendar
+  const isValidAppointmentDate = (dateString: string): boolean => {
+    if (!config || !dateString) return false
+    
+    try {
+      const selectedDate = parseISO(dateString)
+      return isDateAvailable(selectedDate, config)
+    } catch (error) {
+      return false
+    }
+  }
+
+  // Obtener horas disponibles según la configuración
+  const getAvailableTimeSlots = (): string[] => {
+    if (!config) return []
+    return generateTimeSlots(config)
+  }
+
+  // Validar el formulario antes de enviar
+  const validateForm = (): boolean => {
+    if (!formData.clientName.trim()) {
+      toast.error('El nombre del cliente es requerido')
+      return false
+    }
+
+    if (!formData.clientPhone.trim()) {
+      toast.error('El teléfono del cliente es requerido')
+      return false
+    }
+
+    if (!formData.fecha) {
+      toast.error('La fecha es requerida')
+      return false
+    }
+
+    if (!isValidAppointmentDate(formData.fecha)) {
+      const selectedDate = parseISO(formData.fecha)
+      const dayName = getDayNameFromDate(selectedDate)
+      toast.error(`No se puede agendar citas el día ${dayName}. Días laborales: ${config?.dias_laborales.join(', ')}`)
+      return false
+    }
+
+    if (!formData.hora) {
+      toast.error('La hora es requerida')
+      return false
+    }
+
+    const availableSlots = getAvailableTimeSlots()
+    if (!availableSlots.includes(formData.hora)) {
+      toast.error(`La hora seleccionada no está disponible. Horarios disponibles: ${config?.hora_apertura} - ${config?.hora_cierre}`)
+      return false
+    }
+
+    if (!formData.barberId) {
+      toast.error('El barbero es requerido')
+      return false
+    }
+
+    return true
   }
 
   const getStatusColor = (status: string) => {
@@ -475,6 +549,18 @@ export default function AppointmentsPage() {
                   {editingAppointment ? 'Editar Cita' : 'Nueva Cita'}
                 </h3>
                 
+                {/* Información de horarios */}
+                {config && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">Información de Horarios</h4>
+                    <div className="text-xs text-blue-700 space-y-1">
+                      <p><strong>Horario:</strong> {config.hora_apertura} - {config.hora_cierre}</p>
+                      <p><strong>Días laborales:</strong> {config.dias_laborales.join(', ')}</p>
+                      <p><strong>Duración por cita:</strong> {config.duracion_cita} minutos</p>
+                    </div>
+                  </div>
+                )}
+                
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -527,24 +613,40 @@ export default function AppointmentsPage() {
                       <input
                         type="date"
                         value={formData.fecha}
-                        onChange={(e) => setFormData({...formData, fecha: e.target.value})}
+                        onChange={(e) => setFormData({...formData, fecha: e.target.value, hora: ''})}
                         className="input-field"
                         min={new Date().toISOString().split('T')[0]}
                         required
                       />
+                      {formData.fecha && !isValidAppointmentDate(formData.fecha) && (
+                        <div className="flex items-center gap-1 mt-1 text-red-600 text-sm">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>Día no laboral según configuración</span>
+                        </div>
+                      )}
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Hora *
                       </label>
-                      <input
-                        type="time"
+                      <select
                         value={formData.hora}
                         onChange={(e) => setFormData({...formData, hora: e.target.value})}
                         className="input-field"
                         required
-                      />
+                        disabled={!formData.fecha || !isValidAppointmentDate(formData.fecha)}
+                      >
+                        <option value="">Selecciona una hora</option>
+                        {getAvailableTimeSlots().map(time => (
+                          <option key={time} value={time}>{time}</option>
+                        ))}
+                      </select>
+                      {config && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Horario: {config.hora_apertura} - {config.hora_cierre}
+                        </p>
+                      )}
                     </div>
                   </div>
 

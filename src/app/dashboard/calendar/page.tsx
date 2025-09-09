@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Navigation from '@/components/Navigation'
 import type { AppointmentWithClient, Barber } from '@/types/supabase'
+import { getBarbershopConfig, isDateAvailable, getDayNameFromDate } from '@/lib/barbershop-config'
+import type { BarbershopConfig } from '@/lib/barbershop-config'
 import { 
   Calendar as CalendarIcon, 
   ChevronLeft, 
@@ -37,12 +39,14 @@ interface CalendarDay {
   appointments: AppointmentWithClient[]
   isCurrentMonth: boolean
   isToday: boolean
+  isWorkingDay: boolean
 }
 
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [appointments, setAppointments] = useState<AppointmentWithClient[]>([])
   const [barbers, setBarbers] = useState<Barber[]>([])
+  const [config, setConfig] = useState<BarbershopConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null)
   const [showDayModal, setShowDayModal] = useState(false)
@@ -52,6 +56,10 @@ export default function Calendar() {
     const loadData = async () => {
       setLoading(true)
       try {
+        // Cargar configuración de barbería
+        const barbershopConfig = await getBarbershopConfig()
+        setConfig(barbershopConfig)
+
         // Obtener rango del mes actual
         const monthStart = startOfMonth(currentDate)
         const monthEnd = endOfMonth(currentDate)
@@ -100,6 +108,8 @@ export default function Calendar() {
 
   // Generar días del calendario
   const generateCalendarDays = (): CalendarDay[] => {
+    if (!config) return []
+    
     const monthStart = startOfMonth(currentDate)
     const monthEnd = endOfMonth(currentDate)
     const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
@@ -112,11 +122,14 @@ export default function Calendar() {
         isSameDay(parseISO(apt.fecha), date)
       )
 
+      const isWorkingDay = isDateAvailable(date, config)
+
       return {
         date,
         appointments: dayAppointments,
         isCurrentMonth: isSameMonth(date, currentDate),
-        isToday: isToday(date)
+        isToday: isToday(date),
+        isWorkingDay
       }
     })
   }
@@ -138,7 +151,7 @@ export default function Calendar() {
 
   // Abrir modal de día
   const handleDayClick = (day: CalendarDay) => {
-    if (day.appointments.length > 0 || day.isCurrentMonth) {
+    if (day.isWorkingDay && (day.appointments.length > 0 || day.isCurrentMonth)) {
       setSelectedDay(day)
       setShowDayModal(true)
     }
@@ -277,15 +290,18 @@ export default function Calendar() {
                   <div
                     key={index}
                     className={`
-                      min-h-[120px] p-2 border-r border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors
+                      min-h-[120px] p-2 border-r border-b border-gray-200 transition-colors
                       ${!day.isCurrentMonth ? 'bg-gray-50 text-gray-400' : ''}
                       ${day.isToday ? 'bg-blue-50 border-blue-200' : ''}
+                      ${!day.isWorkingDay ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50'}
                     `}
                     onClick={() => handleDayClick(day)}
                   >
                     <div className={`
                       text-sm font-medium mb-1
-                      ${day.isToday ? 'text-blue-600' : day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
+                      ${day.isToday ? 'text-blue-600' : 
+                        !day.isWorkingDay ? 'text-gray-400 line-through' : 
+                        day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
                     `}>
                       {format(day.date, 'd')}
                     </div>
