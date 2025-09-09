@@ -13,7 +13,8 @@ import {
   LogOut, 
   Menu, 
   X,
-  Scissors 
+  Scissors,
+  CalendarDays
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -136,6 +137,10 @@ export default function Navigation({ children }: NavigationProps) {
           <Link href="/dashboard/appointments" className={getLinkClasses('/dashboard/appointments')}>
             <Calendar className="w-5 h-5" />
             Citas
+          </Link>
+          <Link href="/dashboard/calendar" className={getLinkClasses('/dashboard/calendar')}>
+            <CalendarDays className="w-5 h-5" />
+            Calendario
           </Link>
           <Link href="/dashboard/reports" className={getLinkClasses('/dashboard/reports')}>
             <FileText className="w-5 h-5" />
