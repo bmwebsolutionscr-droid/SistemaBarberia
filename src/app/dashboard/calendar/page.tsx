@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Navigation from '@/components/Navigation'
 import type { AppointmentWithClient, Barber } from '@/types/supabase'
-import { getBarbershopConfig, isDateAvailable, getDayNameFromDate } from '@/lib/barbershop-config'
+import { getBarbershopConfig, isDateAvailable, getDayNameFromDate, getServiceDuration, formatPrice } from '@/lib/barbershop-config'
 import type { BarbershopConfig } from '@/lib/barbershop-config'
 import { 
   Calendar as CalendarIcon, 
@@ -398,6 +398,20 @@ export default function Calendar() {
                               <div>
                                 <div className="text-gray-900 mb-1">
                                   <strong>Barbero:</strong> {appointment.barbers?.nombre}
+                                </div>
+                                <div className="text-gray-900 mb-1">
+                                  <strong>Servicio:</strong> {
+                                    appointment.tipo_servicio === 'corte' ? 'Corte' : 
+                                    appointment.tipo_servicio === 'corte_barba' ? 'Corte + Barba' : 
+                                    'No especificado'
+                                  }
+                                </div>
+                                <div className="text-gray-600 text-sm mb-1">
+                                  <strong>Duración:</strong> {
+                                    config ? 
+                                    `${getServiceDuration(appointment.tipo_servicio || 'corte', config)} minutos` : 
+                                    'No disponible'
+                                  }
                                 </div>
                                 {appointment.precio && (
                                   <div className="text-gray-600 text-sm">

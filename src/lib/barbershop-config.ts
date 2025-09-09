@@ -6,6 +6,7 @@ export interface BarbershopConfig {
   hora_cierre: string
   dias_laborales: string[]
   duracion_cita: number
+  duracion_corte_barba: number
   precio_corte_adulto: number
   precio_corte_nino: number
   precio_barba: number
@@ -21,6 +22,7 @@ const defaultConfig: BarbershopConfig = {
   hora_cierre: '18:00',
   dias_laborales: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'],
   duracion_cita: 30,
+  duracion_corte_barba: 60,
   precio_corte_adulto: 15000,
   precio_corte_nino: 10000,
   precio_barba: 8000,
@@ -54,6 +56,7 @@ export async function getBarbershopConfig(): Promise<BarbershopConfig> {
       hora_cierre: barbershopData.hora_cierre || defaultConfig.hora_cierre,
       dias_laborales: barbershopData.dias_laborales || defaultConfig.dias_laborales,
       duracion_cita: barbershopData.duracion_cita || defaultConfig.duracion_cita,
+      duracion_corte_barba: barbershopData.duracion_corte_barba || defaultConfig.duracion_corte_barba,
       precio_corte_adulto: barbershopData.precio_corte_adulto || defaultConfig.precio_corte_adulto,
       precio_corte_nino: barbershopData.precio_corte_nino || defaultConfig.precio_corte_nino,
       precio_barba: barbershopData.precio_barba || defaultConfig.precio_barba,
@@ -114,21 +117,6 @@ export function formatPrice(price: number): string {
   }).format(price)
 }
 
-export function getServicePrice(serviceType: 'adulto' | 'nino' | 'barba' | 'combo', config: BarbershopConfig): number {
-  switch (serviceType) {
-    case 'adulto':
-      return config.precio_corte_adulto
-    case 'nino':
-      return config.precio_corte_nino
-    case 'barba':
-      return config.precio_barba
-    case 'combo':
-      return config.precio_combo
-    default:
-      return config.precio_corte_adulto
-  }
-}
-
 export function canCancelAppointment(appointmentDate: Date, appointmentTime: string, config: BarbershopConfig): boolean {
   try {
     const appointmentDateTime = parse(`${format(appointmentDate, 'yyyy-MM-dd')} ${appointmentTime}`, 'yyyy-MM-dd HH:mm', new Date())
@@ -145,4 +133,47 @@ export function canCancelAppointment(appointmentDate: Date, appointmentTime: str
 export function getDayNameFromDate(date: Date): string {
   const dayNames = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
   return dayNames[date.getDay()]
+}
+
+export function getServiceDuration(serviceType: 'corte' | 'corte_barba', config: BarbershopConfig): number {
+  return serviceType === 'corte_barba' ? config.duracion_corte_barba : config.duracion_cita
+}
+
+export function getServicePrice(serviceType: 'corte' | 'corte_barba', config: BarbershopConfig): number {
+  return serviceType === 'corte_barba' ? config.precio_combo : config.precio_corte_adulto
+}
+
+export function getTimeSlotEnd(startTime: string, durationMinutes: number): string {
+  try {
+    const startDate = parse(startTime, 'HH:mm', new Date())
+    const endDate = addMinutes(startDate, durationMinutes)
+    return format(endDate, 'HH:mm')
+  } catch (error) {
+    console.error('Error al calcular hora final:', error)
+    return startTime
+  }
+}
+
+export function doTimeSlotsOverlap(
+  start1: string, 
+  duration1: number, 
+  start2: string, 
+  duration2: number
+): boolean {
+  try {
+    const startTime1 = parse(start1, 'HH:mm', new Date())
+    const endTime1 = addMinutes(startTime1, duration1)
+    const startTime2 = parse(start2, 'HH:mm', new Date())
+    const endTime2 = addMinutes(startTime2, duration2)
+
+    // Verificar si hay solapamiento
+    return (
+      (isAfter(startTime1, startTime2) && isBefore(startTime1, endTime2)) ||
+      (isAfter(startTime2, startTime1) && isBefore(startTime2, endTime1)) ||
+      startTime1.getTime() === startTime2.getTime()
+    )
+  } catch (error) {
+    console.error('Error al verificar solapamiento:', error)
+    return true // Por seguridad, asumir que hay conflicto si hay error
+  }
 }

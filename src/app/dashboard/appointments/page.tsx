@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Navigation from '@/components/Navigation'
 import type { AppointmentWithClient, Client, Barber, Barbershop } from '@/types/supabase'
-import { getBarbershopConfig, generateTimeSlots, isDateAvailable, getDayNameFromDate } from '@/lib/barbershop-config'
+import { getBarbershopConfig, generateTimeSlots, isDateAvailable, getDayNameFromDate, getServiceDuration, doTimeSlotsOverlap, formatPrice } from '@/lib/barbershop-config'
 import type { BarbershopConfig } from '@/lib/barbershop-config'
 import { 
   Plus, 
@@ -18,7 +18,7 @@ import {
   AlertCircle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, parse, addMinutes } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 interface AppointmentFormData {
@@ -28,6 +28,7 @@ interface AppointmentFormData {
   fecha: string
   hora: string
   barberId: string
+  tipo_servicio: 'corte' | 'corte_barba'
   estado: 'programada' | 'confirmada' | 'cancelada' | 'completada'
   notas?: string
 }
@@ -50,6 +51,7 @@ export default function AppointmentsPage() {
     fecha: '',
     hora: '',
     barberId: '',
+    tipo_servicio: 'corte',
     estado: 'programada',
     notas: ''
   })
@@ -165,7 +167,8 @@ export default function AppointmentsPage() {
     if (!currentBarbershop) return
     
     // Validar el formulario primero
-    if (!validateForm()) {
+    const isValid = await validateForm()
+    if (!isValid) {
       return
     }
     
@@ -208,6 +211,7 @@ export default function AppointmentsPage() {
 
       // Crear o actualizar la cita
       if (editingAppointment) {
+        const serviceDuration = config ? getServiceDuration(formData.tipo_servicio, config) : 30
         const { error } = await supabase
           .from('appointments')
           .update({
@@ -215,6 +219,8 @@ export default function AppointmentsPage() {
             barber_id: formData.barberId,
             fecha: formData.fecha,
             hora: formData.hora,
+            tipo_servicio: formData.tipo_servicio,
+            duracion_minutos: serviceDuration,
             estado: formData.estado,
             notas: formData.notas
           })
@@ -223,6 +229,7 @@ export default function AppointmentsPage() {
         if (error) throw error
         toast.success('Cita actualizada exitosamente')
       } else {
+        const serviceDuration = config ? getServiceDuration(formData.tipo_servicio, config) : 30
         const { error } = await supabase
           .from('appointments')
           .insert({
@@ -231,6 +238,8 @@ export default function AppointmentsPage() {
             barber_id: formData.barberId,
             fecha: formData.fecha,
             hora: formData.hora,
+            tipo_servicio: formData.tipo_servicio,
+            duracion_minutos: serviceDuration,
             estado: formData.estado,
             notas: formData.notas
           })
@@ -261,6 +270,7 @@ export default function AppointmentsPage() {
       fecha: appointment.fecha,
       hora: appointment.hora,
       barberId: appointment.barber_id,
+      tipo_servicio: (appointment as any).tipo_servicio || 'corte',
       estado: appointment.estado,
       notas: appointment.notas || ''
     })
@@ -295,6 +305,7 @@ export default function AppointmentsPage() {
       fecha: '',
       hora: '',
       barberId: barbers.length > 0 ? barbers[0].id : '',
+      tipo_servicio: 'corte',
       estado: 'programada',
       notas: ''
     })
@@ -313,14 +324,59 @@ export default function AppointmentsPage() {
     }
   }
 
+  // Función para generar todos los slots ocupados por una cita
+  const getOccupiedSlots = (appointment: AppointmentWithClient): string[] => {
+    if (!config) return []
+    
+    const startTime = appointment.hora
+    const duracion = appointment.duracion_minutos || getServiceDuration(appointment.tipo_servicio, config)
+    const slots: string[] = []
+    
+    // Limpiar la hora - remover segundos si existen
+    const cleanTime = startTime.substring(0, 5) // '09:00:00' -> '09:00'
+    
+    // Generar slots cada 15 minutos
+    let currentTime = parse(cleanTime, 'HH:mm', new Date())
+    const endTime = addMinutes(currentTime, duracion)
+    
+    while (currentTime < endTime) {
+      const slotTime = format(currentTime, 'HH:mm')
+      slots.push(slotTime)
+      currentTime = addMinutes(currentTime, 15)
+    }
+    
+    return slots
+  }
+
+  // Función para obtener todos los slots ocupados en una fecha específica
+  const getOccupiedSlotsForDate = (date: string): Set<string> => {
+    const occupiedSlots = new Set<string>()
+    
+    appointments.forEach(appointment => {
+      if (appointment.fecha === date && 
+          appointment.estado !== 'cancelada' && 
+          appointment.id !== formData.id) { // Excluir la cita que se está editando
+        const slots = getOccupiedSlots(appointment)
+        slots.forEach(slot => occupiedSlots.add(slot))
+      }
+    })
+    
+    return occupiedSlots
+  }
+
   // Obtener horas disponibles según la configuración
   const getAvailableTimeSlots = (): string[] => {
-    if (!config) return []
-    return generateTimeSlots(config)
+    if (!config || !formData.fecha) return []
+    
+    const allSlots = generateTimeSlots(config)
+    const occupiedSlots = getOccupiedSlotsForDate(formData.fecha)
+    
+    // Filtrar slots ocupados
+    return allSlots.filter(slot => !occupiedSlots.has(slot))
   }
 
   // Validar el formulario antes de enviar
-  const validateForm = (): boolean => {
+  const validateForm = async (): Promise<boolean> => {
     if (!formData.clientName.trim()) {
       toast.error('El nombre del cliente es requerido')
       return false
@@ -359,7 +415,67 @@ export default function AppointmentsPage() {
       return false
     }
 
+    // Verificar conflictos de horario
+    if (config) {
+      const serviceDuration = getServiceDuration(formData.tipo_servicio, config)
+      const hasConflict = await checkTimeSlotConflicts(
+        formData.fecha, 
+        formData.hora, 
+        serviceDuration, 
+        formData.barberId,
+        editingAppointment || undefined
+      )
+
+      if (hasConflict) {
+        const serviceTypeText = formData.tipo_servicio === 'corte_barba' ? 'Corte + Barba' : 'Corte Normal'
+        toast.error(`Conflicto de horario: Ya hay una cita programada que se solapa con ${serviceTypeText} (${serviceDuration} min)`)
+        return false
+      }
+    }
+
     return true
+  }
+
+  // Verificar conflictos de horario
+  const checkTimeSlotConflicts = async (date: string, startTime: string, duration: number, barberId: string, excludeId?: string): Promise<boolean> => {
+    try {
+      // Obtener citas existentes para el barbero en esa fecha
+      const { data: existingAppointments, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('barber_id', barberId)
+        .eq('fecha', date)
+        .in('estado', ['programada', 'confirmada'])
+
+      if (error) {
+        console.error('Error checking conflicts:', error)
+        return true // Asumir conflicto si hay error
+      }
+
+      if (!existingAppointments) return false
+
+      // Verificar solapamientos con citas existentes
+      for (const appointment of existingAppointments) {
+        if (excludeId && appointment.id === excludeId) continue
+
+        const existingDuration = (appointment as any).duracion_minutos || config?.duracion_cita || 30
+        const hasOverlap = doTimeSlotsOverlap(
+          startTime,
+          duration,
+          appointment.hora,
+          existingDuration
+        )
+
+        if (hasOverlap) {
+          return true
+        }
+      }
+
+      return false
+    } catch (error) {
+      console.error('Error checking time conflicts:', error)
+      return true // Por seguridad, asumir conflicto
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -602,6 +718,25 @@ export default function AppointmentsPage() {
                       {barbers.map(barber => (
                         <option key={barber.id} value={barber.id}>{barber.nombre}</option>
                       ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tipo de Servicio *
+                    </label>
+                    <select
+                      value={formData.tipo_servicio}
+                      onChange={(e) => setFormData({...formData, tipo_servicio: e.target.value as 'corte' | 'corte_barba', hora: ''})}
+                      className="input-field"
+                      required
+                    >
+                      <option value="corte">
+                        Corte Normal ({config ? `${config.duracion_cita} min - ${formatPrice(config.precio_corte_adulto)}` : '30 min'})
+                      </option>
+                      <option value="corte_barba">
+                        Corte + Barba ({config ? `${config.duracion_corte_barba} min - ${formatPrice(config.precio_combo)}` : '60 min'})
+                      </option>
                     </select>
                   </div>
 

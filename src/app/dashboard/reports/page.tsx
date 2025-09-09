@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import Navigation from '@/components/Navigation'
 import type { AppointmentWithClient, Barber, Barbershop } from '@/types/supabase'
-import { getBarbershopConfig, BarbershopConfig, generateTimeSlots, isDateAvailable } from '@/lib/barbershop-config'
+import { getBarbershopConfig, BarbershopConfig, generateTimeSlots, isDateAvailable, getServiceDuration } from '@/lib/barbershop-config'
 import { 
   BarChart3, 
   Calendar, 
@@ -17,7 +17,7 @@ import {
   DollarSign,
   RefreshCw
 } from 'lucide-react'
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, addDays, isToday, isPast } from 'date-fns'
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, addDays, isToday, isPast, parse, addMinutes } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 interface AvailableSlot {
@@ -70,7 +70,41 @@ export default function Reports() {
     loadBarbershopConfig()
   }, [])
 
-  const getAvailableSlots = (): AvailableSlot[] => {
+  // Función para generar todos los slots ocupados por una cita
+  const getOccupiedSlots = (appointment: any): string[] => {
+    if (!barbershopConfig) return []
+    
+    const startTime = appointment.hora
+    const duracion = appointment.duracion_minutos || getServiceDuration(appointment.tipo_servicio, barbershopConfig)
+    const slots: string[] = []
+    
+    // Generar slots cada 15 minutos
+    let currentTime = parse(startTime, 'HH:mm', new Date())
+    const endTime = addMinutes(currentTime, duracion)
+    
+    while (currentTime < endTime) {
+      slots.push(format(currentTime, 'HH:mm'))
+      currentTime = addMinutes(currentTime, 15)
+    }
+    
+    return slots
+  }
+
+  // Función para obtener todos los slots ocupados en una fecha específica
+  const getOccupiedSlotsForDate = (date: string): Set<string> => {
+    const occupiedSlots = new Set<string>()
+    
+    appointments.forEach(appointment => {
+      if (appointment.fecha === date && appointment.estado !== 'cancelada') {
+        const slots = getOccupiedSlots(appointment)
+        slots.forEach(slot => occupiedSlots.add(slot))
+      }
+    })
+    
+    return occupiedSlots
+  }
+
+  const getAvailableSlots = useCallback((): AvailableSlot[] => {
     if (!barbershopConfig) return []
     
     const slots: AvailableSlot[] = []
@@ -84,21 +118,26 @@ export default function Reports() {
       // Solo días laborables según la configuración de la barbería
       if (isDateAvailable(date, barbershopConfig)) {
         const dayName = format(date, 'EEEE', { locale: es })
+        const dateStr = format(date, 'yyyy-MM-dd')
+        const occupiedSlotsForDate = getOccupiedSlotsForDate(dateStr)
         
         timeSlots.forEach((time: string) => {
-          slots.push({
-            date: format(date, 'yyyy-MM-dd'),
-            time,
-            weekday: dayName,
-            isToday: isToday(date),
-            isPastTime: isPast(new Date(`${format(date, 'yyyy-MM-dd')} ${time}`))
-          })
+          // Solo agregar el slot si no está ocupado
+          if (!occupiedSlotsForDate.has(time)) {
+            slots.push({
+              date: dateStr,
+              time,
+              weekday: dayName,
+              isToday: isToday(date),
+              isPastTime: isPast(new Date(`${dateStr} ${time}`))
+            })
+          }
         })
       }
     })
 
     return slots.filter(slot => !slot.isPastTime)
-  }
+  }, [barbershopConfig, appointments])
 
   // Obtener datos iniciales
   useEffect(() => {
@@ -155,11 +194,6 @@ export default function Reports() {
         if (activeBarbersForShop) setBarbers(activeBarbersForShop)
         if (barbershopData) setBarbershop(barbershopData)
 
-        // Calcular slots disponibles
-        if (barbershopConfig) {
-          setAvailableSlots(getAvailableSlots())
-        }
-
         // Simulamos datos de WhatsApp (en una implementación real, estos vendrían de la API de WhatsApp)
         setWhatsappStats({
           weeklyMessages: 45,
@@ -186,6 +220,13 @@ export default function Reports() {
       fetchData()
     }
   }, [barbershopConfig])
+
+  // Efecto para actualizar slots disponibles cuando cambien las citas o la configuración
+  useEffect(() => {
+    if (barbershopConfig && appointments.length >= 0) {
+      setAvailableSlots(getAvailableSlots())
+    }
+  }, [barbershopConfig, appointments])
 
   // Calcular estadísticas del período seleccionado
   const getPeriodDates = () => {
