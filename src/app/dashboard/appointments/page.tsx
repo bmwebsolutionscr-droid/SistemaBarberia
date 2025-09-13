@@ -221,6 +221,24 @@ export default function AppointmentsPage() {
       // Crear o actualizar la cita
       if (editingAppointment) {
         const serviceDuration = config ? getServiceDuration(formData.tipo_servicio, config) : 30
+        // Validar si se está reactivando una cita cancelada y el horario ya está ocupado
+        const citaOriginal = appointments.find(a => a.id === editingAppointment)
+        const reactivandoCancelada = citaOriginal && citaOriginal.estado === 'cancelada' && (formData.estado === 'programada' || formData.estado === 'confirmada')
+        if (reactivandoCancelada) {
+          // Verificar si el horario está ocupado por otra cita
+          const conflicto = appointments.some(a =>
+            a.id !== editingAppointment &&
+            a.barber_id === formData.barberId &&
+            a.fecha === formData.fecha &&
+            a.hora === formData.hora &&
+            a.estado !== 'cancelada'
+          )
+          if (conflicto) {
+            toast.error('Lo siento, esta cita estaba cancelada y ya no está disponible este horario.')
+            setLoading(false)
+            return
+          }
+        }
         const { error } = await supabase
           .from('appointments')
           .update({
