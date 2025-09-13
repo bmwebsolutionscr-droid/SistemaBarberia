@@ -74,9 +74,15 @@ export default function Reports() {
   const getOccupiedSlots = (appointment: any): string[] => {
     if (!barbershopConfig) return []
     
-    const startTime = appointment.hora
+    let startTime = appointment.hora
     const duracion = appointment.duracion_minutos || getServiceDuration(appointment.tipo_servicio, barbershopConfig)
     const slots: string[] = []
+    
+    // Normalizar formato de hora - remover segundos si existen
+    if (startTime.includes(':') && startTime.split(':').length === 3) {
+      // Si viene como "11:00:00", convertir a "11:00"
+      startTime = startTime.substring(0, 5)
+    }
     
     // Generar slots cada 15 minutos
     let currentTime = parse(startTime, 'HH:mm', new Date())
@@ -327,7 +333,7 @@ export default function Reports() {
       // Obtener citas confirmadas/programadas en el rango de fechas
       let appointmentsQuery = supabase
         .from('appointments')
-        .select('fecha, hora, barber_id, estado')
+        .select('fecha, hora, barber_id, estado, duracion_minutos, tipo_servicio')
         .gte('fecha', format(startDate, 'yyyy-MM-dd'))
         .lte('fecha', format(endDate, 'yyyy-MM-dd'))
         .in('estado', ['confirmada', 'programada']) // Solo citas confirmadas o programadas
@@ -345,45 +351,30 @@ export default function Reports() {
         return
       }
 
-      // Debug: Mostrar información relevante
-      console.log('=== DEBUG WHATSAPP AVAILABILITY ===')
-      console.log(`Periodo: ${format(startDate, 'yyyy-MM-dd')} a ${format(endDate, 'yyyy-MM-dd')}`)
-      console.log(`Barbero seleccionado: ${selectedBarber ? selectedBarberData?.nombre : 'Todos'}`)
-      console.log(`Barbero ID seleccionado: ${selectedBarber}`)
-      console.log(`Citas encontradas: ${existingAppointments?.length || 0}`)
-      
-      if (existingAppointments && existingAppointments.length > 0) {
-        console.log('Citas ocupadas detalladas:')
-        existingAppointments.forEach(apt => {
-          console.log(`  Fecha: "${apt.fecha}" | Hora: "${apt.hora}" | Barbero ID: "${apt.barber_id}" | Estado: "${apt.estado}"`)
-        })
-      }
 
-      // Crear un Set de slots ocupados para búsqueda rápida
-      const occupiedSlots = new Set(
-        (existingAppointments || []).map(apt => {
-          // Asegurar formato consistente de fecha (YYYY-MM-DD)
-          let normalizedDate = apt.fecha
-          if (apt.fecha.includes('/')) {
-            // Si viene en formato DD/MM/YYYY, convertir a YYYY-MM-DD
-            const parts = apt.fecha.split('/')
-            if (parts.length === 3) {
-              normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
-            }
+
+      // Crear un Set de slots ocupados considerando la duración completa de cada cita
+      const occupiedSlots = new Set<string>()
+      
+      ;(existingAppointments || []).forEach(apt => {
+        // Asegurar formato consistente de fecha (YYYY-MM-DD)
+        let normalizedDate = apt.fecha
+        if (apt.fecha.includes('/')) {
+          // Si viene en formato DD/MM/YYYY, convertir a YYYY-MM-DD
+          const parts = apt.fecha.split('/')
+          if (parts.length === 3) {
+            normalizedDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`
           }
-          
-          // Asegurar formato consistente de hora (HH:MM)
-          let normalizedTime = apt.hora
-          if (apt.hora.includes(':')) {
-            const timeParts = apt.hora.split(':')
-            normalizedTime = `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}`
-          }
-          
-          const slotKey = `${normalizedDate}_${normalizedTime}_${apt.barber_id}`
-          console.log(`Slot ocupado normalizado: "${slotKey}"`)
-          return slotKey
+        }
+        
+        // Obtener todos los slots ocupados por esta cita (considerando su duración)
+        const appointmentSlots = getOccupiedSlots(apt)
+        
+        appointmentSlots.forEach(slot => {
+          const slotKey = `${normalizedDate}_${slot}_${apt.barber_id}`
+          occupiedSlots.add(slotKey)
         })
-      )
+      })
       
       // Generar slots disponibles
       const timeSlots = generateTimeSlots(barbershopConfig)
@@ -405,28 +396,28 @@ export default function Reports() {
                 const slotKey = `${dateKey}_${time}_${selectedBarber}`
                 isSlotAvailable = !occupiedSlots.has(slotKey)
                 
-                // Debug específico para slots que deberían estar ocupados
-                if (!isSlotAvailable) {
-                  console.log(`🚫 SLOT OCUPADO: ${slotKey}`)
-                } else if ((dateKey === '2025-09-11' || dateKey === '2025-09-12') && (time === '09:00' || time === '09:30')) {
-                  console.log(`⚠️  SLOT QUE DEBERÍA ESTAR OCUPADO PERO APARECE LIBRE: ${slotKey}`)
-                  console.log(`   Verificando en occupiedSlots:`, occupiedSlots.has(slotKey))
-                  console.log(`   Slots ocupados que contienen esta fecha/hora:`)
-                  Array.from(occupiedSlots).forEach(slot => {
-                    if (slot.includes(dateKey) && slot.includes(time)) {
-                      console.log(`   → ${slot}`)
-                    }
-                  })
-                }
+
               } else {
                 // Si no hay barbero específico, verificar disponibilidad con cualquier barbero
                 // El slot está disponible si al menos un barbero está libre
                 const barberosDisponibles = barbers.filter(barber => {
                   const slotKey = `${dateKey}_${time}_${barber.id}`
-                  return !occupiedSlots.has(slotKey)
+                  const disponible = !occupiedSlots.has(slotKey)
+                  
+                  // Debug para fecha problemática
+                  if (dateKey === '2025-09-15' && (time === '11:00' || time === '11:30' || time === '12:00' || time === '12:30')) {
+                    console.log(`   Barbero ${barber.nombre} (${barber.id}): ${disponible ? 'LIBRE' : 'OCUPADO'} - slot: ${slotKey}`)
+                  }
+                  
+                  return disponible
                 })
                 
                 isSlotAvailable = barberosDisponibles.length > 0
+                
+                // Debug final para fecha problemática
+                if (dateKey === '2025-09-15' && (time === '11:00' || time === '11:30' || time === '12:00' || time === '12:30')) {
+                  console.log(`   RESULTADO FINAL para ${time}: ${isSlotAvailable ? 'DISPONIBLE' : 'OCUPADO'} (${barberosDisponibles.length} barberos libres)`)
+                }
               }
               
               if (isSlotAvailable) {
@@ -456,8 +447,6 @@ export default function Reports() {
         acc[dateKey].times.push(slot.time)
         return acc
       }, {} as Record<string, { date: Date; dayName: string; times: string[] }>)
-
-      console.log('=== FIN DEBUG ===')
 
       // Generar mensaje
       let message = `🪒 *${barbershop?.nombre || 'Barbería'}* 🪒\n\n`
