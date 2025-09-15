@@ -518,25 +518,34 @@ export default function Reports() {
       <Navigation>
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Reportes y Análisis</h1>
-              <p className="text-gray-600 mt-1">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Reportes y Análisis</h1>
+              <p className="text-gray-600 mt-1 text-sm sm:text-base">
                 Análisis detallado del rendimiento de {barbershop?.nombre || 'la barbería'}
               </p>
             </div>
             
-            {/* Selector de período */}
-            <div className="flex items-center gap-4">
+            {/* Selector de período y acciones */}
+            <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:gap-4">
               <div className="relative">
                 <button
                   onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
-                  className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="w-full sm:w-auto flex items-center justify-between sm:justify-center gap-2 bg-white border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
-                  <Calendar className="h-4 w-4" />
-                  {selectedPeriod === 'week' && 'Esta semana'}
-                  {selectedPeriod === 'month' && 'Este mes'}
-                  {selectedPeriod === 'quarter' && 'Este trimestre'}
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    <span className="hidden sm:inline">
+                      {selectedPeriod === 'week' && 'Esta semana'}
+                      {selectedPeriod === 'month' && 'Este mes'}
+                      {selectedPeriod === 'quarter' && 'Este trimestre'}
+                    </span>
+                    <span className="sm:hidden">
+                      {selectedPeriod === 'week' && 'Semana'}
+                      {selectedPeriod === 'month' && 'Mes'}
+                      {selectedPeriod === 'quarter' && 'Trimestre'}
+                    </span>
+                  </div>
                   <ChevronDown className="h-4 w-4" />
                 </button>
                 
@@ -568,26 +577,32 @@ export default function Reports() {
                 )}
               </div>
               
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:gap-3">
                 <button
                   onClick={() => setShowWhatsAppModal(true)}
-                  className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                  className="flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm"
                 >
                   <MessageCircle className="h-4 w-4" />
-                  WhatsApp
+                  <span className="hidden sm:inline">WhatsApp</span>
+                  <span className="sm:hidden">Mensaje WhatsApp</span>
                 </button>
                 
                 <button
                   onClick={generateReport}
                   disabled={isGeneratingReport}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
                   {isGeneratingReport ? (
                     <RefreshCw className="h-4 w-4 animate-spin" />
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
-                  {isGeneratingReport ? 'Generando...' : 'Exportar'}
+                  <span className="hidden sm:inline">
+                    {isGeneratingReport ? 'Generando...' : 'Exportar'}
+                  </span>
+                  <span className="sm:hidden">
+                    {isGeneratingReport ? 'Generando...' : 'Exportar Reporte'}
+                  </span>
                 </button>
               </div>
             </div>
@@ -595,18 +610,18 @@ export default function Reports() {
         </div>
 
         {/* Estadísticas principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Calendar className="h-8 w-8 text-blue-600" />
+                <Calendar className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-3 sm:ml-5 w-0 flex-1 min-w-0">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
+                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
                     Citas Totales
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-base sm:text-lg font-medium text-gray-900">
                     {stats.totalAppointments}
                   </dd>
                 </dl>
@@ -614,17 +629,17 @@ export default function Reports() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <TrendingUp className="h-8 w-8 text-green-600" />
+                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-3 sm:ml-5 w-0 flex-1 min-w-0">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
+                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
                     Completadas
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-base sm:text-lg font-medium text-gray-900">
                     {stats.completedAppointments}
                   </dd>
                 </dl>
@@ -632,17 +647,17 @@ export default function Reports() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <DollarSign className="h-8 w-8 text-yellow-600" />
+                <DollarSign className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-3 sm:ml-5 w-0 flex-1 min-w-0">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
+                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
                     Ingresos
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-base sm:text-lg font-medium text-gray-900">
                     ₡{stats.totalRevenue.toLocaleString()}
                   </dd>
                 </dl>
@@ -650,17 +665,17 @@ export default function Reports() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <BarChart3 className="h-8 w-8 text-purple-600" />
+                <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
               </div>
-              <div className="ml-5 w-0 flex-1">
+              <div className="ml-3 sm:ml-5 w-0 flex-1 min-w-0">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
+                  <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate">
                     Promedio/Día
                   </dt>
-                  <dd className="text-lg font-medium text-gray-900">
+                  <dd className="text-base sm:text-lg font-medium text-gray-900">
                     {stats.averagePerDay.toFixed(1)}
                   </dd>
                 </dl>
@@ -670,63 +685,64 @@ export default function Reports() {
         </div>
 
         {/* WhatsApp Analytics */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-              <MessageCircle className="h-5 w-5 text-green-600" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-8">
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
               Estadísticas WhatsApp
             </h3>
             
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Mensajes recibidos</span>
-                <span className="font-medium">{whatsappStats.weeklyMessages}</span>
+                <span className="text-xs sm:text-sm text-gray-600">Mensajes recibidos</span>
+                <span className="font-medium text-sm sm:text-base">{whatsappStats.weeklyMessages}</span>
               </div>
               
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Citas por WhatsApp</span>
-                <span className="font-medium">{whatsappStats.weeklyAppointments}</span>
+                <span className="text-xs sm:text-sm text-gray-600">Citas por WhatsApp</span>
+                <span className="font-medium text-sm sm:text-base">{whatsappStats.weeklyAppointments}</span>
               </div>
               
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Confirmaciones</span>
-                <span className="font-medium">{whatsappStats.weeklyConfirmations}</span>
+                <span className="text-xs sm:text-sm text-gray-600">Confirmaciones</span>
+                <span className="font-medium text-sm sm:text-base">{whatsappStats.weeklyConfirmations}</span>
               </div>
               
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Recordatorios</span>
-                <span className="font-medium">{whatsappStats.weeklyReminders}</span>
+                <span className="text-xs sm:text-sm text-gray-600">Recordatorios</span>
+                <span className="font-medium text-sm sm:text-base">{whatsappStats.weeklyReminders}</span>
               </div>
               
               <div className="pt-2 border-t">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-900">Tasa de conversión</span>
-                  <span className="text-lg font-bold text-green-600">{whatsappStats.weeklyAppointmentRate}%</span>
+                  <span className="text-xs sm:text-sm font-medium text-gray-900">Tasa de conversión</span>
+                  <span className="text-base sm:text-lg font-bold text-green-600">{whatsappStats.weeklyAppointmentRate}%</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Disponibilidad de citas */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-600" />
-              Disponibilidad (próximas 2 semanas)
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+              <span className="hidden sm:inline">Disponibilidad (próximas 2 semanas)</span>
+              <span className="sm:hidden">Disponibilidad</span>
             </h3>
             
             <div className="space-y-3">
-              <div className="text-sm text-gray-600 mb-3">
+              <div className="text-xs sm:text-sm text-gray-600 mb-3">
                 Slots disponibles: <span className="font-medium text-gray-900">{availableSlots.length}</span>
               </div>
               
               <div className="max-h-40 overflow-y-auto">
                 {availableSlots.slice(0, 10).map((slot, index) => (
                   <div key={`${slot.date}-${slot.time}`} 
-                       className="flex justify-between items-center py-1 text-sm">
-                    <span className="text-gray-600">
+                       className="flex justify-between items-center py-1 text-xs sm:text-sm">
+                    <span className="text-gray-600 truncate">
                       {format(new Date(slot.date), 'dd MMM', { locale: es })} - {slot.weekday}
                     </span>
-                    <span className="font-medium">{slot.time}</span>
+                    <span className="font-medium ml-2 flex-shrink-0">{slot.time}</span>
                   </div>
                 ))}
               </div>
@@ -742,26 +758,28 @@ export default function Reports() {
 
         {/* Top Barber */}
         {stats.topBarber && (
-          <div className="bg-white rounded-lg shadow p-6 mb-8">
-            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-              <Users className="h-5 w-5 text-indigo-600" />
-              Barbero Destacado del Período
+          <div className="bg-white rounded-lg shadow p-4 sm:p-6 mb-8">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+              <Users className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600" />
+              <span className="hidden sm:inline">Barbero Destacado del Período</span>
+              <span className="sm:hidden">Barbero Destacado</span>
             </h3>
             
-            <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-xl font-bold text-gray-900">{stats.topBarber.nombre}</h4>
-              <p className="text-gray-600">{stats.topBarber.count} citas completadas</p>
-              {stats.topBarber.especialidad && (
-                <p className="text-sm text-gray-500 mt-1">
-                  Especialidad: {stats.topBarber.especialidad}
-                </p>
-              )}
-            </div>              <div className="text-right">
-                <div className="text-2xl font-bold text-indigo-600">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+              <div className="min-w-0 flex-1">
+                <h4 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{stats.topBarber.nombre}</h4>
+                <p className="text-sm sm:text-base text-gray-600">{stats.topBarber.count} citas completadas</p>
+                {stats.topBarber.especialidad && (
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1 truncate">
+                    Especialidad: {stats.topBarber.especialidad}
+                  </p>
+                )}
+              </div>
+              <div className="text-left sm:text-right flex-shrink-0">
+                <div className="text-xl sm:text-2xl font-bold text-indigo-600">
                   {((stats.topBarber.count / stats.completedAppointments) * 100).toFixed(1)}%
                 </div>
-                <div className="text-sm text-gray-500">del total</div>
+                <div className="text-xs sm:text-sm text-gray-500">del total</div>
               </div>
             </div>
           </div>
@@ -769,29 +787,79 @@ export default function Reports() {
 
         {/* Citas recientes */}
         <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900">
               Citas del Período Seleccionado
             </h3>
           </div>
           
-          <div className="overflow-x-auto">
+          {/* Versión móvil - Cards */}
+          <div className="block sm:hidden">
+            {periodAppointments.slice(0, 10).map((appointment) => {
+              const barber = barbers.find(b => b.id === appointment.barber_id)
+              return (
+                <div key={appointment.id} className="border-b border-gray-200 p-4 last:border-b-0">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-medium text-gray-900 text-sm">
+                          {appointment.clients?.nombre || 'Cliente no especificado'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {format(new Date(`${appointment.fecha} ${appointment.hora}`), 'dd/MM/yyyy HH:mm', { locale: es })}
+                        </p>
+                      </div>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        appointment.estado === 'completada' 
+                          ? 'bg-green-100 text-green-800'
+                          : appointment.estado === 'cancelada'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {appointment.estado === 'completada' && 'Completada'}
+                        {appointment.estado === 'cancelada' && 'Cancelada'}
+                        {appointment.estado === 'confirmada' && 'Confirmada'}
+                        {appointment.estado === 'programada' && 'Programada'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs text-gray-500">
+                        Barbero: {barber?.nombre || 'No asignado'}
+                      </p>
+                      <p className="text-xs text-gray-900 font-medium">
+                        {appointment.precio ? `₡${appointment.precio.toLocaleString()}` : '-'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+            
+            {periodAppointments.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                No hay citas en el período seleccionado
+              </div>
+            )}
+          </div>
+          
+          {/* Versión desktop - Tabla */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Cliente
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Fecha y Hora
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Barbero
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Estado
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Precio
                   </th>
                 </tr>
@@ -801,16 +869,20 @@ export default function Reports() {
                   const barber = barbers.find(b => b.id === appointment.barber_id)
                   return (
                     <tr key={appointment.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {appointment.clients?.nombre || 'Cliente no especificado'}
+                      <td className="px-4 lg:px-6 py-4 text-sm font-medium text-gray-900">
+                        <div className="max-w-xs truncate">
+                          {appointment.clients?.nombre || 'Cliente no especificado'}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {format(new Date(`${appointment.fecha} ${appointment.hora}`), 'dd/MM/yyyy HH:mm', { locale: es })}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {barber?.nombre || 'No asignado'}
+                      <td className="px-4 lg:px-6 py-4 text-sm text-gray-500">
+                        <div className="max-w-xs truncate">
+                          {barber?.nombre || 'No asignado'}
+                        </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           appointment.estado === 'completada' 
                             ? 'bg-green-100 text-green-800'
@@ -824,7 +896,7 @@ export default function Reports() {
                           {appointment.estado === 'programada' && 'Programada'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {appointment.precio ? `₡${appointment.precio.toLocaleString()}` : '-'}
                       </td>
                     </tr>
@@ -843,24 +915,25 @@ export default function Reports() {
 
         {/* Modal WhatsApp */}
         {showWhatsAppModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-green-600" />
-                  Generar Mensaje WhatsApp
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-4 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                  <span className="hidden sm:inline">Generar Mensaje WhatsApp</span>
+                  <span className="sm:hidden">WhatsApp</span>
                 </h3>
                 <button
                   onClick={() => setShowWhatsAppModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="text-gray-500 hover:text-gray-700 p-1"
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="space-y-4 mb-6">
+              <div className="space-y-4 mb-4 sm:mb-6">
                 {/* Debug info */}
-                <div className="bg-gray-100 p-3 rounded text-xs">
+                <div className="bg-gray-100 p-2 sm:p-3 rounded text-xs">
                   <strong>Debug Info:</strong><br/>
                   Barberos cargados: {barbers.length}<br/>
                   Barbería: {barbershop?.nombre || 'No cargada'}<br/>
@@ -874,7 +947,7 @@ export default function Reports() {
                   <select
                     value={whatsAppDays}
                     onChange={(e) => setWhatsAppDays(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="7">7 días</option>
                     <option value="15">15 días</option>
@@ -889,7 +962,7 @@ export default function Reports() {
                   <select
                     value={selectedBarber}
                     onChange={(e) => setSelectedBarber(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Todos los barberos</option>
                     {barbers.length === 0 ? (
@@ -904,27 +977,32 @@ export default function Reports() {
                     )}
                   </select>
                   {barbers.length === 0 && (
-                    <p className="text-sm text-yellow-600 mt-1">
+                    <p className="text-xs sm:text-sm text-yellow-600 mt-1">
                       ⚠️ No se encontraron barberos activos. Verifica la configuración de la base de datos.
                     </p>
                   )}
                 </div>
               </div>
 
-              <div className="flex gap-3 mb-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4">
                 <button
                   onClick={generateWhatsAppMessage}
                   disabled={isGeneratingWhatsApp}
-                  className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
                   <RefreshCw className={`h-4 w-4 ${isGeneratingWhatsApp ? 'animate-spin' : ''}`} />
-                  {isGeneratingWhatsApp ? 'Verificando disponibilidad...' : 'Generar Mensaje'}
+                  <span className="hidden sm:inline">
+                    {isGeneratingWhatsApp ? 'Verificando disponibilidad...' : 'Generar Mensaje'}
+                  </span>
+                  <span className="sm:hidden">
+                    {isGeneratingWhatsApp ? 'Verificando...' : 'Generar'}
+                  </span>
                 </button>
                 
                 {whatsAppMessage && (
                   <button
                     onClick={copyWhatsAppMessage}
-                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                    className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
                   >
                     <Download className="h-4 w-4" />
                     Copiar
@@ -940,7 +1018,7 @@ export default function Reports() {
                   <textarea
                     value={whatsAppMessage}
                     readOnly
-                    className="w-full h-64 border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 font-mono text-sm resize-none"
+                    className="w-full h-48 sm:h-64 border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 font-mono text-xs sm:text-sm resize-none"
                   />
                   <p className="text-xs text-gray-500 mt-2">
                     Este mensaje está listo para copiar y enviar por WhatsApp
