@@ -213,25 +213,25 @@ export default function Calendar() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation>
-        <div className="p-6">
+        <div className="p-3 sm:p-6">
           <div className="max-w-6xl mx-auto">
             {/* Header del calendario */}
-            <div className="bg-white rounded-lg shadow mb-6 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <CalendarIcon className="h-8 w-8 text-blue-600" />
+            <div className="bg-white rounded-lg shadow mb-4 sm:mb-6 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 space-y-3 sm:space-y-0">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                  <h1 className="text-lg sm:text-2xl font-bold text-gray-900 flex items-center gap-2 justify-center sm:justify-start">
+                    <CalendarIcon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
                     Calendario de Citas
                   </h1>
                   <button
                     onClick={goToToday}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
                   >
                     Hoy
                   </button>
                 </div>
                 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center justify-center gap-4">
                   <button
                     onClick={goToPreviousMonth}
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -239,7 +239,7 @@ export default function Calendar() {
                     <ChevronLeft className="h-5 w-5" />
                   </button>
                   
-                  <h2 className="text-xl font-semibold text-gray-900 min-w-[200px] text-center">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-900 min-w-[180px] sm:min-w-[200px] text-center">
                     {format(currentDate, 'MMMM yyyy', { locale: es })}
                   </h2>
                   
@@ -253,7 +253,7 @@ export default function Calendar() {
               </div>
 
               {/* Leyenda de estados */}
-              <div className="flex flex-wrap gap-4 text-sm">
+              <div className="flex flex-wrap justify-center sm:justify-start gap-3 sm:gap-4 text-xs sm:text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                   <span>Confirmada</span>
@@ -277,9 +277,10 @@ export default function Calendar() {
             <div className="bg-white rounded-lg shadow overflow-hidden">
               {/* Cabecera de días de la semana */}
               <div className="grid grid-cols-7 bg-gray-50">
-                {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
-                  <div key={day} className="p-3 text-center font-medium text-gray-700">
-                    {day}
+                {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day, index) => (
+                  <div key={day} className="p-2 sm:p-3 text-center font-medium text-gray-700 text-xs sm:text-sm">
+                    <span className="hidden sm:inline">{day}</span>
+                    <span className="sm:hidden">{['L', 'M', 'M', 'J', 'V', 'S', 'D'][index]}</span>
                   </div>
                 ))}
               </div>
@@ -290,7 +291,7 @@ export default function Calendar() {
                   <div
                     key={index}
                     className={`
-                      min-h-[120px] p-2 border-r border-b border-gray-200 transition-colors
+                      min-h-[80px] sm:min-h-[120px] p-1 sm:p-2 border-r border-b border-gray-200 transition-colors
                       ${!day.isCurrentMonth ? 'bg-gray-50 text-gray-400' : ''}
                       ${day.isToday ? 'bg-blue-50 border-blue-200' : ''}
                       ${!day.isWorkingDay ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50'}
@@ -298,7 +299,7 @@ export default function Calendar() {
                     onClick={() => handleDayClick(day)}
                   >
                     <div className={`
-                      text-sm font-medium mb-1
+                      text-xs sm:text-sm font-medium mb-1
                       ${day.isToday ? 'text-blue-600' : 
                         !day.isWorkingDay ? 'text-gray-400 line-through' : 
                         day.isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}
@@ -312,18 +313,20 @@ export default function Calendar() {
                         <div
                           key={appointment.id}
                           className={`
-                            text-xs px-2 py-1 rounded truncate
+                            text-xs px-1 sm:px-2 py-0.5 sm:py-1 rounded truncate
                             ${getAppointmentStatusColor(appointment.estado)}
                           `}
                           title={`${appointment.hora} - ${appointment.clients?.nombre}`}
                         >
-                          {appointment.hora} {appointment.clients?.nombre}
+                          <span className="hidden sm:inline">{appointment.hora} {appointment.clients?.nombre}</span>
+                          <span className="sm:hidden">●</span>
                         </div>
                       ))}
                       
                       {day.appointments.length > 3 && (
-                        <div className="text-xs text-gray-500 px-2">
-                          +{day.appointments.length - 3} más
+                        <div className="text-xs text-gray-500 px-1 sm:px-2">
+                          <span className="hidden sm:inline">+{day.appointments.length - 3} más</span>
+                          <span className="sm:hidden">+{day.appointments.length - 3}</span>
                         </div>
                       )}
                     </div>

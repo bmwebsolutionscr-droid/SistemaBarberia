@@ -15,7 +15,8 @@ import {
   Phone,
   User,
   ChevronDown,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format, parseISO, parse, addMinutes } from 'date-fns'
@@ -564,19 +565,19 @@ export default function AppointmentsPage() {
 
   return (
     <Navigation>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 p-3 sm:p-0">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gestión de Citas</h1>
-            <p className="text-gray-600">Administra las citas de {currentBarbershop?.nombre}</p>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0">
+          <div className="text-center sm:text-left">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Gestión de Citas</h1>
+            <p className="text-sm sm:text-base text-gray-600">Administra las citas de {currentBarbershop?.nombre}</p>
           </div>
           <button
             onClick={() => {
               resetForm()
               setShowModal(true)
             }}
-            className="btn-primary flex items-center"
+            className="btn-primary flex items-center justify-center w-full sm:w-auto"
           >
             <Plus className="w-4 h-4 mr-2" />
             Nueva Cita
@@ -618,9 +619,10 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
-        {/* Appointments Table */}
+        {/* Appointments List */}
         <div className="card">
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden lg:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="table-header">
                 <tr>
@@ -689,24 +691,88 @@ export default function AppointmentsPage() {
                 ))}
               </tbody>
             </table>
-            
-            {filteredAppointments.length === 0 && (
-              <div className="text-center py-8">
-                <CalendarIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">
-                  {searchTerm ? 'No se encontraron citas' : 'No hay citas programadas'}
-                </p>
-              </div>
-            )}
           </div>
+
+          {/* Mobile Card View */}
+          <div className="lg:hidden space-y-3">
+            {filteredAppointments.map((appointment) => (
+              <div key={appointment.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                {/* Client Info */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center flex-1">
+                    <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="w-6 h-6 text-primary-600" />
+                    </div>
+                    <div className="ml-3 min-w-0 flex-1">
+                      <div className="font-medium text-gray-900 truncate">
+                        {appointment.clients.nombre}
+                      </div>
+                      {appointment.clients.telefono && (
+                        <div className="text-sm text-gray-500 flex items-center mt-1">
+                          <Phone className="w-4 h-4 mr-1 flex-shrink-0" />
+                          <span className="truncate">{appointment.clients.telefono}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ml-2 ${getStatusColor(appointment.estado)}`}>
+                    {getStatusText(appointment.estado)}
+                  </span>
+                </div>
+
+                {/* Appointment Details */}
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <User className="w-4 h-4 mr-2 text-gray-400" />
+                    <span>{appointment.barbers?.nombre || 'Barbero no encontrado'}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <CalendarIcon className="w-4 h-4 mr-2 text-gray-400" />
+                    <span>{format(parseISO(appointment.fecha), 'PPP', { locale: es })}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Clock className="w-4 h-4 mr-2 text-gray-400" />
+                    <span>{appointment.hora}</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex space-x-3 pt-3 border-t border-gray-200">
+                  <button
+                    onClick={() => handleEdit(appointment)}
+                    className="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-primary-50 text-primary-700 rounded-md hover:bg-primary-100 transition-colors"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(appointment.id)}
+                    className="flex-1 flex items-center justify-center px-3 py-2 text-sm bg-red-50 text-red-700 rounded-md hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+            
+          {filteredAppointments.length === 0 && (
+            <div className="text-center py-8">
+              <CalendarIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">
+                {searchTerm ? 'No se encontraron citas' : 'No hay citas programadas'}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Modal */}
         {showModal && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-2 sm:p-4">
+            <div className="relative top-4 sm:top-20 mx-auto p-4 sm:p-5 border w-full max-w-md shadow-lg rounded-md bg-white min-h-[calc(100vh-2rem)] sm:min-h-0">
+              <div className="mt-2 sm:mt-3">
+                <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-4 text-center sm:text-left">
                   {editingAppointment ? 'Editar Cita' : 'Nueva Cita'}
                 </h3>
                 
@@ -714,52 +780,53 @@ export default function AppointmentsPage() {
                 {config && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                     <h4 className="text-sm font-medium text-blue-900 mb-2">Información de Horarios</h4>
-                    <div className="text-xs text-blue-700 space-y-1">
+                    <div className="text-xs sm:text-sm text-blue-700 space-y-1">
                       <p><strong>Horario:</strong> {config.hora_apertura} - {config.hora_cierre}</p>
-                      <p><strong>Días laborales:</strong> {config.dias_laborales.join(', ')}</p>
-                      <p><strong>Duración por cita:</strong> {config.duracion_cita} minutos</p>
+                      <p><strong>Días:</strong> {config.dias_laborales.join(', ')}</p>
+                      <p><strong>Duración:</strong> {config.duracion_cita} min</p>
                     </div>
                   </div>
                 )}
                 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Nombre del Cliente *
                     </label>
                     <input
                       type="text"
                       value={formData.clientName}
                       onChange={(e) => setFormData({...formData, clientName: e.target.value})}
-                      className="input-field"
+                      className="input-field h-12 text-base"
                       required
+                      placeholder="Ingrese el nombre completo"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Teléfono del Cliente (Opcional)
                     </label>
                     <input
                       type="tel"
                       value={formData.clientPhone}
                       onChange={(e) => setFormData({...formData, clientPhone: e.target.value})}
-                      className="input-field"
+                      className="input-field h-12 text-base"
                       placeholder="+506 8888-1234 (opcional)"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Deja vacío si no tienes el número del cliente
+                      Opcional - para notificaciones
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Barbero *
                     </label>
                     <select
                       value={formData.barberId}
                       onChange={(e) => setFormData({...formData, barberId: e.target.value})}
-                      className="input-field"
+                      className="input-field h-12 text-base"
                       required
                     >
                       <option value="">Seleccionar barbero</option>
@@ -770,13 +837,13 @@ export default function AppointmentsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Tipo de Servicio *
                     </label>
                     <select
                       value={formData.tipo_servicio}
                       onChange={(e) => setFormData({...formData, tipo_servicio: e.target.value as 'corte' | 'corte_barba', hora: editingAppointment ? formData.hora : ''})}
-                      className="input-field"
+                      className="input-field h-12 text-base"
                       required
                     >
                       <option value="corte">
@@ -788,16 +855,16 @@ export default function AppointmentsPage() {
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         Fecha *
                       </label>
                       <input
                         type="date"
                         value={formData.fecha}
                         onChange={(e) => setFormData({...formData, fecha: e.target.value, hora: editingAppointment ? formData.hora : ''})}
-                        className="input-field"
+                        className="input-field h-12 text-base"
                         min={new Date().toISOString().split('T')[0]}
                         required
                       />
@@ -810,13 +877,13 @@ export default function AppointmentsPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         Hora *
                       </label>
                       <select
                         value={formData.hora}
                         onChange={(e) => setFormData({...formData, hora: e.target.value})}
-                        className="input-field"
+                        className="input-field h-12 text-base"
                         required
                         disabled={!formData.fecha || !formData.barberId || !isValidAppointmentDate(formData.fecha)}
                       >
@@ -834,13 +901,13 @@ export default function AppointmentsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Estado
                     </label>
                     <select
                       value={formData.estado}
                       onChange={(e) => setFormData({...formData, estado: e.target.value as any})}
-                      className="input-field"
+                      className="input-field h-12 text-base"
                     >
                       <option value="programada">Programada</option>
                       <option value="confirmada">Confirmada</option>
@@ -850,30 +917,30 @@ export default function AppointmentsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Notas
                     </label>
                     <textarea
                       value={formData.notas}
                       onChange={(e) => setFormData({...formData, notas: e.target.value})}
-                      className="input-field"
+                      className="input-field text-base"
                       rows={3}
                       placeholder="Notas adicionales sobre la cita..."
                     />
                   </div>
 
-                  <div className="flex justify-end space-x-3 pt-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
                     <button
                       type="button"
                       onClick={() => setShowModal(false)}
-                      className="btn-secondary"
+                      className="btn-secondary w-full sm:w-auto h-12 text-base"
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
                       disabled={loading}
-                      className="btn-primary disabled:opacity-50"
+                      className="btn-primary disabled:opacity-50 w-full sm:w-auto h-12 text-base"
                     >
                       {loading ? 'Guardando...' : (editingAppointment ? 'Actualizar' : 'Agendar')}
                     </button>
