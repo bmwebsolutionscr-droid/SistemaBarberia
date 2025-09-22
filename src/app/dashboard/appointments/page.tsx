@@ -181,28 +181,26 @@ export default function AppointmentsPage() {
       // Primero, buscar o crear el cliente
       let clientId = ''
       const existingClient = clients.find(c => {
-        // Buscar por nombre exacto
-        if (c.nombre.toLowerCase() === formData.clientName.toLowerCase()) return true
-        // Si hay teléfono válido (no vacío y no null), también buscar por teléfono
-        if (formData.clientPhone.trim() && 
-            c.telefono && 
-            c.telefono === formData.clientPhone.trim()) return true
-        return false
+        // Buscar por nombre exacto Y información compatible
+        const nameMatches = c.nombre.toLowerCase() === formData.clientName.toLowerCase()
+        
+        // Si no hay teléfono en el formulario, usar cualquier cliente con el mismo nombre
+        if (!formData.clientPhone.trim()) {
+          return nameMatches
+        }
+        
+        // Si hay teléfono en el formulario, debe coincidir con el teléfono existente
+        // o el cliente existente debe no tener teléfono
+        const phoneMatches = c.telefono === formData.clientPhone.trim() || !c.telefono
+        
+        return nameMatches && phoneMatches
       })
 
       if (existingClient) {
         clientId = existingClient.id
-        // Actualizar información del cliente si es necesario
-        const phoneValue = formData.clientPhone.trim() || null
-        if (existingClient.nombre !== formData.clientName || existingClient.telefono !== phoneValue) {
-          await supabase
-            .from('clients')
-            .update({
-              nombre: formData.clientName,
-              telefono: phoneValue
-            })
-            .eq('id', clientId)
-        }
+        // NO actualizamos la información del cliente existente para preservar la información histórica
+        // Si el usuario quiere actualizar la información del cliente, debe hacerlo manualmente
+        // desde la sección de gestión de clientes
       } else {
         // Crear nuevo cliente
         const { data: newClient, error: clientError } = await supabase
