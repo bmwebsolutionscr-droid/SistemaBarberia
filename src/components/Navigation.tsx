@@ -14,11 +14,9 @@ import {
   Menu, 
   X,
   Scissors,
-  CalendarDays,
-  Settings
+  CalendarDays
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import BrandLogo from '@/components/branding/BrandLogo'
 
 interface NavigationProps {
   children: React.ReactNode
@@ -97,11 +95,9 @@ export default function Navigation({ children }: NavigationProps) {
           </button>
           
           <div className="flex items-center">
-            <BrandLogo 
-              logoUrl={(currentBarbershop as any)?.logo_url}
-              barbershopName={currentBarbershop?.nombre}
-              size="md"
-            />
+            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+              <Scissors className="w-4 h-4 text-white" />
+            </div>
             <div className="ml-2">
               <h1 className="text-sm font-semibold text-gray-900 truncate max-w-32">
                 {currentBarbershop?.nombre || 'Mi Barbería'}
@@ -127,11 +123,9 @@ export default function Navigation({ children }: NavigationProps) {
         {/* Mobile close button */}
         <div className="lg:hidden flex items-center justify-between p-4 border-b bg-gray-50">
           <div className="flex items-center">
-            <BrandLogo 
-              logoUrl={(currentBarbershop as any)?.logo_url}
-              barbershopName={currentBarbershop?.nombre}
-              size="lg"
-            />
+            <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
+              <Scissors className="w-6 h-6 text-white" />
+            </div>
             <div className="ml-3">
               <h1 className="text-lg font-bold text-gray-900">
                 {currentBarbershop?.nombre || 'Mi Barbería'}
@@ -209,7 +203,7 @@ export default function Navigation({ children }: NavigationProps) {
             className={getLinkClasses('/dashboard/settings')}
             onClick={() => setSidebarOpen(false)}
           >
-            <Settings className="w-5 h-5 mr-3 flex-shrink-0" />
+            <Scissors className="w-5 h-5 mr-3 flex-shrink-0" />
             <span className="truncate">Configuración</span>
           </Link>
         </nav>
