@@ -16,9 +16,11 @@ import {
   Store,
   Instagram,
   Facebook,
-  MessageCircle
+  MessageCircle,
+  Palette
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import LogoUpload from '@/components/branding/LogoUpload'
 
 interface ConfigurationData {
   // Información básica
@@ -27,6 +29,7 @@ interface ConfigurationData {
   telefono: string
   direccion: string
   descripcion: string
+  logo_url?: string | null
   
   // Horarios
   hora_apertura: string
@@ -69,6 +72,7 @@ export default function Configuration() {
     telefono: '',
     direccion: '',
     descripcion: '',
+    logo_url: null,
     hora_apertura: '08:00',
     hora_cierre: '18:00',
     dias_laborales: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'],
@@ -127,7 +131,8 @@ export default function Configuration() {
             whatsapp_numero: (barbershop as any).whatsapp_numero || '',
             tiempo_cancelacion: (barbershop as any).tiempo_cancelacion || 2,
             instagram: (barbershop as any).instagram || '',
-            facebook: (barbershop as any).facebook || ''
+            facebook: (barbershop as any).facebook || '',
+            logo_url: (barbershop as any).logo_url || null
           })
         }
       } catch (error) {
@@ -156,6 +161,14 @@ export default function Configuration() {
       dias_laborales: prev.dias_laborales.includes(day)
         ? prev.dias_laborales.filter(d => d !== day)
         : [...prev.dias_laborales, day]
+    }))
+  }
+
+  // Manejar cambio de logo
+  const handleLogoChange = (logoUrl: string | null) => {
+    setConfig(prev => ({
+      ...prev,
+      logo_url: logoUrl
     }))
   }
 
@@ -337,6 +350,21 @@ export default function Configuration() {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Branding y Logo */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Palette className="h-5 w-5 text-blue-600" />
+                Branding y Logo
+              </h2>
+              
+              <LogoUpload
+                barbershopId={barbershopId}
+                currentLogo={config.logo_url}
+                onLogoChange={handleLogoChange}
+                className="border-0 shadow-none p-0"
+              />
             </div>
 
             {/* Horarios y Días */}
