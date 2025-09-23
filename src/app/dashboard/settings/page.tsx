@@ -31,6 +31,9 @@ interface ConfigurationData {
   // Horarios
   hora_apertura: string
   hora_cierre: string
+  hora_almuerzo_inicio: string
+  hora_almuerzo_fin: string
+  almuerzo_activo: boolean
   dias_laborales: string[]
   
   // Servicios y duraciones (en minutos)
@@ -71,6 +74,9 @@ export default function Configuration() {
     descripcion: '',
     hora_apertura: '08:00',
     hora_cierre: '18:00',
+    hora_almuerzo_inicio: '12:00',
+    hora_almuerzo_fin: '13:00',
+    almuerzo_activo: true,
     dias_laborales: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'],
     duracion_cita: 30,
     precio_corte_adulto: 15000,
@@ -117,6 +123,9 @@ export default function Configuration() {
             descripcion: (barbershop as any).descripcion || '',
             hora_apertura: (barbershop as any).hora_apertura || '08:00',
             hora_cierre: (barbershop as any).hora_cierre || '18:00',
+            hora_almuerzo_inicio: (barbershop as any).hora_almuerzo_inicio || '12:00',
+            hora_almuerzo_fin: (barbershop as any).hora_almuerzo_fin || '13:00',
+            almuerzo_activo: (barbershop as any).almuerzo_activo ?? true,
             dias_laborales: (barbershop as any).dias_laborales || ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'],
             duracion_cita: (barbershop as any).duracion_cita || 30,
             precio_corte_adulto: (barbershop as any).precio_corte_adulto || 15000,
@@ -159,10 +168,42 @@ export default function Configuration() {
     }))
   }
 
+  // Validar horario de almuerzo
+  const validateLunchHours = (): boolean => {
+    if (!config.almuerzo_activo) return true
+    
+    const apertura = new Date(`2000-01-01T${config.hora_apertura}:00`)
+    const cierre = new Date(`2000-01-01T${config.hora_cierre}:00`)
+    const almuerzoInicio = new Date(`2000-01-01T${config.hora_almuerzo_inicio}:00`)
+    const almuerzoFin = new Date(`2000-01-01T${config.hora_almuerzo_fin}:00`)
+    
+    if (almuerzoInicio >= almuerzoFin) {
+      toast.error('La hora de inicio del almuerzo debe ser anterior a la hora de fin')
+      return false
+    }
+    
+    if (almuerzoInicio <= apertura) {
+      toast.error('La hora de inicio del almuerzo debe ser posterior a la hora de apertura')
+      return false
+    }
+    
+    if (almuerzoFin >= cierre) {
+      toast.error('La hora de fin del almuerzo debe ser anterior a la hora de cierre')
+      return false
+    }
+    
+    return true
+  }
+
   // Guardar configuración
   const saveConfiguration = async () => {
     if (!barbershopId) {
       toast.error('Error: No se pudo identificar la barbería')
+      return
+    }
+
+    // Validar horario de almuerzo
+    if (!validateLunchHours()) {
       return
     }
 
@@ -177,6 +218,9 @@ export default function Configuration() {
           descripcion: config.descripcion,
           hora_apertura: config.hora_apertura,
           hora_cierre: config.hora_cierre,
+          hora_almuerzo_inicio: config.hora_almuerzo_inicio,
+          hora_almuerzo_fin: config.hora_almuerzo_fin,
+          almuerzo_activo: config.almuerzo_activo,
           dias_laborales: config.dias_laborales,
           duracion_cita: config.duracion_cita,
           precio_corte_adulto: config.precio_corte_adulto,
@@ -371,6 +415,82 @@ export default function Configuration() {
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
+                </div>
+
+                {/* Configuración de horario de almuerzo */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        🍽️ Horario de Almuerzo
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Bloquea este horario para evitar citas durante el almuerzo
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.almuerzo_activo}
+                        onChange={(e) => handleInputChange('almuerzo_activo', e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                  
+                  {config.almuerzo_activo && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Inicio del Almuerzo
+                          </label>
+                          <input
+                            type="time"
+                            value={config.hora_almuerzo_inicio}
+                            onChange={(e) => handleInputChange('hora_almuerzo_inicio', e.target.value)}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Fin del Almuerzo
+                          </label>
+                          <input
+                            type="time"
+                            value={config.hora_almuerzo_fin}
+                            onChange={(e) => handleInputChange('hora_almuerzo_fin', e.target.value)}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Preview de horarios disponibles */}
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 className="text-sm font-medium text-blue-900 mb-2">
+                          👀 Vista Previa de Horarios Disponibles
+                        </h4>
+                        <div className="text-xs text-blue-700">
+                          <div className="flex flex-wrap gap-1">
+                            <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                              {config.hora_apertura} - {config.hora_almuerzo_inicio}
+                            </span>
+                            <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
+                              {config.hora_almuerzo_inicio} - {config.hora_almuerzo_fin} (🍽️ Almuerzo)
+                            </span>
+                            <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                              {config.hora_almuerzo_fin} - {config.hora_cierre}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-xs">
+                            ✅ Verde: Horarios disponibles para citas | ❌ Rojo: Horario bloqueado
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div>

@@ -4,6 +4,9 @@ import { addMinutes, format, isAfter, isBefore, parse } from 'date-fns'
 export interface BarbershopConfig {
   hora_apertura: string
   hora_cierre: string
+  hora_almuerzo_inicio: string
+  hora_almuerzo_fin: string
+  almuerzo_activo: boolean
   dias_laborales: string[]
   duracion_cita: number
   duracion_corte_barba: number
@@ -20,6 +23,9 @@ export interface BarbershopConfig {
 const defaultConfig: BarbershopConfig = {
   hora_apertura: '08:00',
   hora_cierre: '18:00',
+  hora_almuerzo_inicio: '12:00',
+  hora_almuerzo_fin: '13:00',
+  almuerzo_activo: true,
   dias_laborales: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'],
   duracion_cita: 30,
   duracion_corte_barba: 60,
@@ -51,9 +57,24 @@ export async function getBarbershopConfig(): Promise<BarbershopConfig> {
     // Usar any para acceder a propiedades que pueden no estar en el tipo
     const barbershopData = barbershop as any
 
-    return {
+    // Debug: Verificar si los campos de almuerzo existen
+    console.log('🍽️ Debug - Campos de almuerzo en BD:', {
+      hora_almuerzo_inicio: barbershopData.hora_almuerzo_inicio,
+      hora_almuerzo_fin: barbershopData.hora_almuerzo_fin,
+      almuerzo_activo: barbershopData.almuerzo_activo,
+      exists: {
+        hora_almuerzo_inicio: 'hora_almuerzo_inicio' in barbershopData,
+        hora_almuerzo_fin: 'hora_almuerzo_fin' in barbershopData,
+        almuerzo_activo: 'almuerzo_activo' in barbershopData
+      }
+    })
+
+    const config = {
       hora_apertura: barbershopData.hora_apertura || defaultConfig.hora_apertura,
       hora_cierre: barbershopData.hora_cierre || defaultConfig.hora_cierre,
+      hora_almuerzo_inicio: barbershopData.hora_almuerzo_inicio || defaultConfig.hora_almuerzo_inicio,
+      hora_almuerzo_fin: barbershopData.hora_almuerzo_fin || defaultConfig.hora_almuerzo_fin,
+      almuerzo_activo: barbershopData.almuerzo_activo ?? defaultConfig.almuerzo_activo,
       dias_laborales: barbershopData.dias_laborales || defaultConfig.dias_laborales,
       duracion_cita: barbershopData.duracion_cita || defaultConfig.duracion_cita,
       duracion_corte_barba: barbershopData.duracion_corte_barba || defaultConfig.duracion_corte_barba,
@@ -65,6 +86,9 @@ export async function getBarbershopConfig(): Promise<BarbershopConfig> {
       whatsapp_numero: barbershopData.whatsapp_numero || defaultConfig.whatsapp_numero,
       tiempo_cancelacion: barbershopData.tiempo_cancelacion || defaultConfig.tiempo_cancelacion
     }
+
+    console.log('🍽️ Debug - Configuración final cargada:', config)
+    return config
   } catch (error) {
     console.error('Error al cargar configuración:', error)
     return defaultConfig
@@ -74,25 +98,69 @@ export async function getBarbershopConfig(): Promise<BarbershopConfig> {
 export function generateTimeSlots(config: BarbershopConfig): string[] {
   const slots: string[] = []
   
+  // Debug: Log de la configuración recibida
+  console.log('🍽️ Debug - generateTimeSlots recibió configuración:', {
+    almuerzo_activo: config.almuerzo_activo,
+    hora_almuerzo_inicio: config.hora_almuerzo_inicio,
+    hora_almuerzo_fin: config.hora_almuerzo_fin,
+    hora_apertura: config.hora_apertura,
+    hora_cierre: config.hora_cierre
+  })
+  
   try {
     const startTime = parse(config.hora_apertura, 'HH:mm', new Date())
     const endTime = parse(config.hora_cierre, 'HH:mm', new Date())
     const duration = config.duracion_cita
 
+    // Parsear horarios de almuerzo si están activos
+    let lunchStart: Date | null = null
+    let lunchEnd: Date | null = null
+    
+    if (config.almuerzo_activo && config.hora_almuerzo_inicio && config.hora_almuerzo_fin) {
+      lunchStart = parse(config.hora_almuerzo_inicio, 'HH:mm', new Date())
+      lunchEnd = parse(config.hora_almuerzo_fin, 'HH:mm', new Date())
+      console.log('🍽️ Debug - Horario de almuerzo ACTIVO:', {
+        lunchStart: format(lunchStart, 'HH:mm'),
+        lunchEnd: format(lunchEnd, 'HH:mm')
+      })
+    } else {
+      console.log('🍽️ Debug - Horario de almuerzo DESACTIVADO o campos faltantes:', {
+        almuerzo_activo: config.almuerzo_activo,
+        tiene_hora_inicio: !!config.hora_almuerzo_inicio,
+        tiene_hora_fin: !!config.hora_almuerzo_fin
+      })
+    }
+
     let currentTime = startTime
 
     while (isBefore(currentTime, endTime) || currentTime.getTime() === endTime.getTime()) {
-      slots.push(format(currentTime, 'HH:mm'))
+      const timeString = format(currentTime, 'HH:mm')
+      
+      // Verificar si el slot actual está dentro del horario de almuerzo
+      let isLunchTime = false
+      if (lunchStart && lunchEnd) {
+        // Un slot está en horario de almuerzo si comienza dentro del rango de almuerzo
+        isLunchTime = (isAfter(currentTime, lunchStart) || currentTime.getTime() === lunchStart.getTime()) && 
+                     isBefore(currentTime, lunchEnd)
+      }
+      
+      // Solo agregar el slot si NO está en horario de almuerzo
+      if (!isLunchTime) {
+        slots.push(timeString)
+      } else {
+        console.log(`🍽️ Debug - Slot ${timeString} EXCLUIDO por horario de almuerzo`)
+      }
+      
       currentTime = addMinutes(currentTime, duration)
     }
   } catch (error) {
     console.error('Error al generar slots de tiempo:', error)
-    // Slots por defecto si hay error
+    // Slots por defecto si hay error (sin horario de almuerzo para seguridad)
     return ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', 
-            '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', 
-            '16:00', '16:30', '17:00', '17:30']
+            '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30']
   }
 
+  console.log('🍽️ Debug - Slots finales generados:', slots)
   return slots
 }
 
