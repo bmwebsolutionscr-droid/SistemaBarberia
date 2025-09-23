@@ -62,6 +62,11 @@ export async function getBarbershopConfig(): Promise<BarbershopConfig> {
       hora_almuerzo_inicio: barbershopData.hora_almuerzo_inicio,
       hora_almuerzo_fin: barbershopData.hora_almuerzo_fin,
       almuerzo_activo: barbershopData.almuerzo_activo,
+      tipos: {
+        hora_almuerzo_inicio: typeof barbershopData.hora_almuerzo_inicio,
+        hora_almuerzo_fin: typeof barbershopData.hora_almuerzo_fin,
+        almuerzo_activo: typeof barbershopData.almuerzo_activo
+      },
       exists: {
         hora_almuerzo_inicio: 'hora_almuerzo_inicio' in barbershopData,
         hora_almuerzo_fin: 'hora_almuerzo_fin' in barbershopData,
@@ -69,11 +74,33 @@ export async function getBarbershopConfig(): Promise<BarbershopConfig> {
       }
     })
 
+    // Función auxiliar para normalizar valores de tiempo
+    const normalizeTimeValue = (value: any, fallback: string) => {
+      if (!value) return fallback
+      
+      // Si es un string, limpiar y validar
+      if (typeof value === 'string') {
+        const cleaned = value.trim()
+        // Si viene como "13:00:00", convertir a "13:00"
+        if (cleaned.match(/^\d{2}:\d{2}:\d{2}$/)) {
+          return cleaned.substring(0, 5) // tomar solo HH:mm
+        }
+        return cleaned
+      }
+      
+      // Si es un objeto Date, formatear
+      if (value instanceof Date) {
+        return format(value, 'HH:mm')
+      }
+      
+      return fallback
+    }
+
     const config = {
-      hora_apertura: barbershopData.hora_apertura || defaultConfig.hora_apertura,
-      hora_cierre: barbershopData.hora_cierre || defaultConfig.hora_cierre,
-      hora_almuerzo_inicio: barbershopData.hora_almuerzo_inicio || defaultConfig.hora_almuerzo_inicio,
-      hora_almuerzo_fin: barbershopData.hora_almuerzo_fin || defaultConfig.hora_almuerzo_fin,
+      hora_apertura: normalizeTimeValue(barbershopData.hora_apertura, defaultConfig.hora_apertura),
+      hora_cierre: normalizeTimeValue(barbershopData.hora_cierre, defaultConfig.hora_cierre),
+      hora_almuerzo_inicio: normalizeTimeValue(barbershopData.hora_almuerzo_inicio, defaultConfig.hora_almuerzo_inicio),
+      hora_almuerzo_fin: normalizeTimeValue(barbershopData.hora_almuerzo_fin, defaultConfig.hora_almuerzo_fin),
       almuerzo_activo: barbershopData.almuerzo_activo ?? defaultConfig.almuerzo_activo,
       dias_laborales: barbershopData.dias_laborales || defaultConfig.dias_laborales,
       duracion_cita: barbershopData.duracion_cita || defaultConfig.duracion_cita,
@@ -116,19 +143,48 @@ export function generateTimeSlots(config: BarbershopConfig): string[] {
     let lunchStart: Date | null = null
     let lunchEnd: Date | null = null
     
+    console.log('🍽️ Debug - Valores de almuerzo recibidos:', {
+      almuerzo_activo: config.almuerzo_activo,
+      hora_almuerzo_inicio: config.hora_almuerzo_inicio,
+      hora_almuerzo_fin: config.hora_almuerzo_fin,
+      tipo_inicio: typeof config.hora_almuerzo_inicio,
+      tipo_fin: typeof config.hora_almuerzo_fin
+    })
+    
     if (config.almuerzo_activo && config.hora_almuerzo_inicio && config.hora_almuerzo_fin) {
-      lunchStart = parse(config.hora_almuerzo_inicio, 'HH:mm', new Date())
-      lunchEnd = parse(config.hora_almuerzo_fin, 'HH:mm', new Date())
-      console.log('🍽️ Debug - Horario de almuerzo ACTIVO:', {
-        lunchStart: format(lunchStart, 'HH:mm'),
-        lunchEnd: format(lunchEnd, 'HH:mm')
-      })
+      try {
+        // Validar que los valores de tiempo sean strings válidos
+        const inicioStr = String(config.hora_almuerzo_inicio).trim()
+        const finStr = String(config.hora_almuerzo_fin).trim()
+        
+        console.log('🍽️ Debug - Strings de tiempo:', { inicioStr, finStr })
+        
+        // Validar formato básico HH:mm o HH:mm:ss
+        const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/
+        if (!timeRegex.test(inicioStr) || !timeRegex.test(finStr)) {
+          throw new Error(`Formato de tiempo inválido: inicio="${inicioStr}", fin="${finStr}"`)
+        }
+        
+        lunchStart = parse(inicioStr, 'HH:mm', new Date())
+        lunchEnd = parse(finStr, 'HH:mm', new Date())
+        
+        // Verificar que el parseo fue exitoso
+        if (isNaN(lunchStart.getTime()) || isNaN(lunchEnd.getTime())) {
+          throw new Error(`Fechas inválidas después del parseo: inicio=${lunchStart}, fin=${lunchEnd}`)
+        }
+        
+        console.log('🍽️ Debug - Horario de almuerzo ACTIVO y válido:', {
+          lunchStart: format(lunchStart, 'HH:mm'),
+          lunchEnd: format(lunchEnd, 'HH:mm')
+        })
+      } catch (error) {
+        console.error('🚨 Error al parsear horarios de almuerzo:', error)
+        console.log('🔧 Desactivando almuerzo por error en el parseo')
+        lunchStart = null
+        lunchEnd = null
+      }
     } else {
-      console.log('🍽️ Debug - Horario de almuerzo DESACTIVADO o campos faltantes:', {
-        almuerzo_activo: config.almuerzo_activo,
-        tiene_hora_inicio: !!config.hora_almuerzo_inicio,
-        tiene_hora_fin: !!config.hora_almuerzo_fin
-      })
+      console.log('🍽️ Debug - Horario de almuerzo DESACTIVADO o campos faltantes')
     }
 
     let currentTime = startTime
@@ -139,16 +195,24 @@ export function generateTimeSlots(config: BarbershopConfig): string[] {
       // Verificar si el slot actual está dentro del horario de almuerzo
       let isLunchTime = false
       if (lunchStart && lunchEnd) {
-        // Un slot está en horario de almuerzo si comienza dentro del rango de almuerzo
-        isLunchTime = (isAfter(currentTime, lunchStart) || currentTime.getTime() === lunchStart.getTime()) && 
-                     isBefore(currentTime, lunchEnd)
+        // Un slot está en horario de almuerzo si está >= hora_inicio Y < hora_fin
+        // Usamos >= para incluir la hora exacta de inicio del almuerzo
+        // Usamos < para excluir la hora exacta de fin del almuerzo (para que puedan agendar justo cuando termina)
+        isLunchTime = (currentTime.getTime() >= lunchStart.getTime()) && 
+                     (currentTime.getTime() < lunchEnd.getTime())
+        
+        // Debug detallado para este slot específico
+        if (isLunchTime) {
+          console.log(`🍽️ Debug - Slot ${timeString} está en horario de almuerzo (${config.hora_almuerzo_inicio} - ${config.hora_almuerzo_fin})`)
+        }
       }
       
       // Solo agregar el slot si NO está en horario de almuerzo
       if (!isLunchTime) {
         slots.push(timeString)
+        console.log(`✅ Debug - Slot ${timeString} INCLUIDO (disponible)`)
       } else {
-        console.log(`🍽️ Debug - Slot ${timeString} EXCLUIDO por horario de almuerzo`)
+        console.log(`❌ Debug - Slot ${timeString} EXCLUIDO por horario de almuerzo`)
       }
       
       currentTime = addMinutes(currentTime, duration)
