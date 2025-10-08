@@ -43,7 +43,7 @@ export default function Reports() {
   const [barbershop, setBarbershop] = useState<Barbershop | null>(null)
   const [barbershopConfig, setBarbershopConfig] = useState<BarbershopConfig | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedPeriod, setSelectedPeriod] = useState('week')
+  const [selectedPeriod, setSelectedPeriod] = useState('7days')
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false)
   const [isGeneratingReport, setIsGeneratingReport] = useState(false)
   const [whatsappStats, setWhatsappStats] = useState<WhatsAppStats>({
@@ -290,33 +290,644 @@ export default function Reports() {
   const generateReport = async () => {
     setIsGeneratingReport(true)
     
-    // Simular generación de reporte
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    try {
+      if (!barbershop) {
+        throw new Error('No se encontró información de la barbería')
+      }
+
+      // Calcular fechas según el período seleccionado
+      const endDate = new Date()
+      let startDate = new Date()
+      
+      switch (selectedPeriod) {
+        case '7days':
+          startDate = addDays(endDate, -7)
+          break
+        case '15days':
+          startDate = addDays(endDate, -15)
+          break
+        case '30days':
+          startDate = addDays(endDate, -30)
+          break
+        case 'week':
+          startDate = startOfWeek(endDate, { weekStartsOn: 1 })
+          break
+        default:
+          startDate = addDays(endDate, -7)
+      }
+
+      console.log('Generando reporte para período:', { startDate, endDate })
+
+      // Obtener datos financieros del período
+      const { data: financialSummary, error: summaryError } = await supabase
+        .rpc('get_financial_summary_by_period', {
+          p_barbershop_id: barbershop.id,
+          p_start_date: format(startDate, 'yyyy-MM-dd'),
+          p_end_date: format(endDate, 'yyyy-MM-dd')
+        } as any)
+
+      if (summaryError) {
+        console.error('Error al obtener resumen financiero:', summaryError)
+        throw summaryError
+      }
+
+      // Obtener detalle de pagos
+      const { data: paidAppointments, error: paymentsError } = await supabase
+        .rpc('get_paid_appointments_detail', {
+          p_barbershop_id: barbershop.id,
+          p_start_date: format(startDate, 'yyyy-MM-dd'),
+          p_end_date: format(endDate, 'yyyy-MM-dd')
+        } as any)
+
+      if (paymentsError) {
+        console.error('Error al obtener pagos:', paymentsError)
+        throw paymentsError
+      }
+
+      // Obtener rendimiento por barbero
+      const { data: barberPerformance, error: barberError } = await supabase
+        .rpc('get_barber_performance_by_period', {
+          p_barbershop_id: barbershop.id,
+          p_start_date: format(startDate, 'yyyy-MM-dd'),
+          p_end_date: format(endDate, 'yyyy-MM-dd')
+        } as any)
+
+      if (barberError) {
+        console.error('Error al obtener rendimiento barberos:', barberError)
+        throw barberError
+      }
+
+      console.log('Datos obtenidos:', {
+        financialSummary,
+        paidAppointments,
+        barberPerformance
+      })
+
+      // Generar PDF
+      await generateFinancialPDF({
+        barbershop,
+        startDate,
+        endDate,
+        selectedPeriod,
+        financialSummary: financialSummary?.[0] || {},
+        paidAppointments: paidAppointments || [],
+        barberPerformance: barberPerformance || []
+      })
+
+    } catch (error) {
+      console.error('Error al generar reporte:', error)
+      alert('Error al generar el reporte. Por favor, intenta de nuevo.')
+    } finally {
+      setIsGeneratingReport(false)
+    }
+  }
+
+  // Función para generar PDF con jsPDF mejorado
+  const generateFinancialPDF = async (data: {
+    barbershop: any,
+    startDate: Date,
+    endDate: Date,
+    selectedPeriod: string,
+    financialSummary: any,
+    paidAppointments: any[],
+    barberPerformance: any[]
+  }) => {
+    const { jsPDF } = await import('jspdf')
+    const pdf = new jsPDF()
     
-    // En una implementación real, aquí se generaría un PDF o Excel
-    const reportData = {
-      period: selectedPeriod,
-      dates: { start: periodStart, end: periodEnd },
-      stats,
-      appointments: periodAppointments,
-      whatsappStats,
-      availableSlots
+    const {
+      barbershop,
+      startDate,
+      endDate,
+      selectedPeriod,
+      financialSummary,
+      paidAppointments,
+      barberPerformance
+    } = data
+
+    const pageWidth = pdf.internal.pageSize.width
+    const pageHeight = pdf.internal.pageSize.height
+    const margin = 15
+    let yPosition = margin
+
+    // Configuración de colores corporativos mejorados (simplificado para evitar errores TypeScript)
+    const colors = {
+      primary: [13, 71, 161] as [number, number, number],
+      secondary: [25, 118, 210] as [number, number, number],
+      accent: [255, 193, 7] as [number, number, number],
+      success: [46, 125, 50] as [number, number, number],
+      danger: [211, 47, 47] as [number, number, number],
+      light: [245, 245, 245] as [number, number, number],
+      lightGray: [238, 238, 238] as [number, number, number],
+      mediumGray: [189, 189, 189] as [number, number, number],
+      darkGray: [66, 66, 66] as [number, number, number],
+      text: [33, 33, 33] as [number, number, number],
+      white: [255, 255, 255] as [number, number, number]
+    }
+
+    // Función mejorada para verificar salto de página
+    const checkPageBreak = (requiredHeight: number, addHeader = false) => {
+      if (yPosition + requiredHeight > pageHeight - 35) {
+        pdf.addPage()
+        yPosition = margin
+        if (addHeader) {
+          addPageHeader()
+          yPosition += 25
+        }
+        return true
+      }
+      return false
+    }
+
+    // Función para formatear moneda mejorada
+    const formatMoney = (amount: number) => {
+      const formatted = new Intl.NumberFormat('es-CR', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(amount || 0)
+      return `¢${formatted}`
+    }
+
+    // Función para formatear porcentajes
+    const formatPercentage = (value: number, total: number) => {
+      if (total === 0) return '0%'
+      return `${((value / total) * 100).toFixed(1)}%`
+    }
+
+    // Función para agregar encabezado de página secundaria
+    const addPageHeader = () => {
+      pdf.setFillColor(...colors.primary)
+      pdf.rect(0, 0, pageWidth, 20, 'F')
+      
+      pdf.setTextColor(...colors.white)
+      pdf.setFontSize(12)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('REPORTE FINANCIERO', pageWidth / 2, 13, { align: 'center' })
+    }
+
+    // ENCABEZADO PRINCIPAL MEJORADO
+    // Fondo degradado simulado con múltiples rectángulos
+    for (let i = 0; i < 45; i++) {
+      const alpha = 1 - (i / 45) * 0.3
+      pdf.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2])
+      pdf.rect(0, i, pageWidth, 1, 'F')
     }
     
-    console.log('Reporte generado:', reportData)
+    // Título principal sin logo
+    pdf.setTextColor(...colors.white)
+    pdf.setFontSize(26)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('REPORTE FINANCIERO', pageWidth / 2, 30, { align: 'center' })
     
-    // Simular descarga
-    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `reporte-${selectedPeriod}-${format(new Date(), 'yyyy-MM-dd')}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    pdf.setFontSize(12)
+    pdf.setFont('helvetica', 'normal')
+    pdf.text('Análisis Detallado de Ingresos y Pagos', pageWidth / 2, 40, { align: 'center' })
     
-    setIsGeneratingReport(false)
+    yPosition = 65
+
+    // Información de la empresa en caja elegante
+    pdf.setFillColor(...colors.light)
+    pdf.rect(margin, yPosition - 5, pageWidth - 2 * margin, 25, 'F')
+    pdf.setDrawColor(...colors.mediumGray)
+    pdf.rect(margin, yPosition - 5, pageWidth - 2 * margin, 25, 'S')
+    
+    pdf.setTextColor(...colors.text)
+    pdf.setFontSize(12)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text(`${barbershop.nombre || 'BARBERÍA PROFESIONAL'}`, margin + 5, yPosition + 5)
+    
+    pdf.setFontSize(9)
+    pdf.setFont('helvetica', 'normal')
+    const periodText = selectedPeriod === '7days' ? 'Últimos 7 días' : 
+                      selectedPeriod === '15days' ? 'Últimos 15 días' : 
+                      selectedPeriod === '30days' ? 'Últimos 30 días' : 
+                      selectedPeriod === 'week' ? 'Esta semana' :
+                      selectedPeriod === 'month' ? 'Este mes' : 'Este trimestre'
+    
+    pdf.text(`Período: ${periodText} (${format(startDate, 'dd/MM/yyyy')} - ${format(endDate, 'dd/MM/yyyy')})`, margin + 5, yPosition + 12)
+    pdf.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es })}`, pageWidth - margin - 60, yPosition + 12)
+    
+    yPosition += 35
+
+    // TARJETAS DE MÉTRICAS PRINCIPALES
+    const metrics = [
+      { 
+        title: 'Total Citas', 
+        value: financialSummary.total_appointments || 0, 
+        color: colors.secondary
+      },
+      { 
+        title: 'Citas Pagadas', 
+        value: financialSummary.total_paid || 0, 
+        color: colors.success,
+        percentage: formatPercentage(financialSummary.total_paid || 0, financialSummary.total_appointments || 1)
+      },
+      { 
+        title: 'Total Recaudado', 
+        value: formatMoney(financialSummary.total_amount_paid || 0), 
+        color: colors.accent
+      },
+      { 
+        title: 'Ticket Promedio', 
+        value: formatMoney(financialSummary.average_ticket || 0), 
+        color: colors.primary
+      }
+    ]
+
+    const cardWidth = (pageWidth - 2 * margin - 15) / 2 // 2 tarjetas por fila
+    const cardHeight = 30
+
+    for (let i = 0; i < metrics.length; i++) {
+      const metric = metrics[i]
+      const row = Math.floor(i / 2)
+      const col = i % 2
+      const x = margin + col * (cardWidth + 5)
+      const y = yPosition + row * (cardHeight + 5)
+
+      // Sombra de tarjeta
+      pdf.setFillColor(220, 220, 220)
+      pdf.rect(x + 1, y + 1, cardWidth, cardHeight, 'F')
+      
+      // Tarjeta principal
+      pdf.setFillColor(...colors.white)
+      pdf.rect(x, y, cardWidth, cardHeight, 'F')
+      
+      // Borde izquierdo colorido
+      pdf.setFillColor(...metric.color)
+      pdf.rect(x, y, 4, cardHeight, 'F')
+      
+      // Contenido de tarjeta
+      pdf.setTextColor(...colors.text)
+      pdf.setFontSize(8)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(metric.title, x + 10, y + 8)
+      
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(metric.value.toString(), x + 10, y + 18)
+      
+      if (metric.percentage) {
+        pdf.setFontSize(9)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(...colors.success)
+        pdf.text(metric.percentage, x + 10, y + 25)
+      }
+    }
+
+    yPosition += cardHeight * 2 + 25
+
+    // SECCIÓN DE MÉTODOS DE PAGO CON GRÁFICO VISUAL
+    checkPageBreak(80, true)
+    
+    // Título de sección con diseño mejorado
+    pdf.setFillColor(...colors.primary)
+    pdf.rect(margin, yPosition - 2, pageWidth - 2 * margin, 18, 'F')
+    
+    pdf.setTextColor(...colors.white)
+    pdf.setFontSize(14)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('MÉTODOS DE PAGO', margin + 5, yPosition + 10)
+    
+    yPosition += 25
+
+    const paymentMethods = [
+      { name: 'Efectivo', amount: financialSummary.efectivo_amount || 0, color: colors.success },
+      { name: 'SINPE Móvil', amount: financialSummary.sinpe_amount || 0, color: colors.accent },
+      { name: 'Tarjeta', amount: financialSummary.tarjeta_amount || 0, color: colors.secondary },
+      { name: 'Transferencia', amount: financialSummary.transferencia_amount || 0, color: colors.primary }
+    ]
+
+    const totalPayments = paymentMethods.reduce((sum, method) => sum + method.amount, 0)
+
+    // Tabla mejorada de métodos de pago
+    const tableHeaders = ['Método', 'Monto', 'Porcentaje']
+    const colWidths = [60, 50, 40]
+    const headerHeight = 12
+
+    // Encabezados con gradiente
+    pdf.setFillColor(...colors.lightGray)
+    pdf.rect(margin, yPosition, pageWidth - 2 * margin, headerHeight, 'F')
+    
+    pdf.setTextColor(...colors.text)
+    pdf.setFontSize(11)
+    pdf.setFont('helvetica', 'bold')
+    
+    let currentX = margin + 5
+    tableHeaders.forEach((header, index) => {
+      pdf.text(header, currentX, yPosition + 8)
+      currentX += colWidths[index]
+    })
+
+    yPosition += headerHeight
+
+    // Filas de datos con alternancia de colores
+    paymentMethods.forEach((method, index) => {
+      const rowHeight = 14
+      
+      if (index % 2 === 0) {
+        pdf.setFillColor(...colors.light)
+        pdf.rect(margin, yPosition, pageWidth - 2 * margin, rowHeight, 'F')
+      }
+      
+      // Indicador de color del método
+      pdf.setFillColor(...method.color)
+      pdf.rect(margin + 2, yPosition + 3, 3, rowHeight - 6, 'F')
+      
+      pdf.setTextColor(...colors.text)
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'normal')
+      
+      currentX = margin + 8
+      pdf.text(method.name, currentX, yPosition + 9)
+      currentX += colWidths[0]
+      
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(formatMoney(method.amount), currentX, yPosition + 9)
+      currentX += colWidths[1]
+      
+      pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(...method.color)
+      pdf.text(formatPercentage(method.amount, totalPayments), currentX, yPosition + 9)
+      
+      yPosition += rowHeight
+    })
+
+    yPosition += 20
+
+    // ANÁLISIS DE SERVICIOS
+    checkPageBreak(60, true)
+    
+    pdf.setFillColor(...colors.primary)
+    pdf.rect(margin, yPosition - 2, pageWidth - 2 * margin, 18, 'F')
+    
+    pdf.setTextColor(...colors.white)
+    pdf.setFontSize(14)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('ANÁLISIS POR SERVICIOS', margin + 5, yPosition + 10)
+    
+    yPosition += 25
+
+    const services = [
+      { 
+        name: 'Corte Simple', 
+        count: financialSummary.corte_count || 0, 
+        amount: financialSummary.corte_amount || 0,
+        color: colors.secondary
+      },
+      { 
+        name: 'Corte + Barba', 
+        count: financialSummary.corte_barba_count || 0, 
+        amount: financialSummary.corte_barba_amount || 0,
+        color: colors.accent
+      }
+    ]
+
+    // Tabla de servicios mejorada
+    const serviceHeaders = ['Servicio', 'Cantidad', 'Ingresos', 'Promedio']
+    const serviceColWidths = [50, 30, 45, 35]
+
+    pdf.setFillColor(...colors.lightGray)
+    pdf.rect(margin, yPosition, pageWidth - 2 * margin, headerHeight, 'F')
+    
+    pdf.setTextColor(...colors.text)
+    pdf.setFontSize(11)
+    pdf.setFont('helvetica', 'bold')
+    
+    currentX = margin + 5
+    serviceHeaders.forEach((header, index) => {
+      pdf.text(header, currentX, yPosition + 8)
+      currentX += serviceColWidths[index]
+    })
+
+    yPosition += headerHeight
+
+    services.forEach((service, index) => {
+      const rowHeight = 16
+      
+      if (index % 2 === 0) {
+        pdf.setFillColor(...colors.light)
+        pdf.rect(margin, yPosition, pageWidth - 2 * margin, rowHeight, 'F')
+      }
+      
+      pdf.setFillColor(...service.color)
+      pdf.rect(margin + 2, yPosition + 3, 3, rowHeight - 6, 'F')
+      
+      pdf.setTextColor(...colors.text)
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'normal')
+      
+      const avgPrice = service.count > 0 ? service.amount / service.count : 0
+      
+      currentX = margin + 8
+      pdf.text(service.name, currentX, yPosition + 10)
+      currentX += serviceColWidths[0]
+      
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(service.count.toString(), currentX, yPosition + 10)
+      currentX += serviceColWidths[1]
+      
+      pdf.text(formatMoney(service.amount), currentX, yPosition + 10)
+      currentX += serviceColWidths[2]
+      
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(formatMoney(avgPrice), currentX, yPosition + 10)
+      
+      yPosition += rowHeight
+    })
+
+    yPosition += 25
+
+    // RENDIMIENTO POR BARBERO
+    if (barberPerformance.length > 0) {
+      checkPageBreak(50 + barberPerformance.length * 18, true)
+      
+      pdf.setFillColor(...colors.primary)
+      pdf.rect(margin, yPosition - 2, pageWidth - 2 * margin, 18, 'F')
+      
+      pdf.setTextColor(...colors.white)
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('RENDIMIENTO POR BARBERO', margin + 5, yPosition + 10)
+      
+      yPosition += 25
+
+      // Encabezados de barberos
+      const barberHeaders = ['Barbero', 'Citas', 'Pagadas', 'Ingresos', 'Eficiencia']
+      const barberColWidths = [40, 25, 25, 35, 30]
+
+      pdf.setFillColor(...colors.lightGray)
+      pdf.rect(margin, yPosition, pageWidth - 2 * margin, headerHeight, 'F')
+      
+      pdf.setTextColor(...colors.text)
+      pdf.setFontSize(11)
+      pdf.setFont('helvetica', 'bold')
+      
+      currentX = margin + 5
+      barberHeaders.forEach((header, index) => {
+        pdf.text(header, currentX, yPosition + 8)
+        currentX += barberColWidths[index]
+      })
+
+      yPosition += headerHeight
+
+      barberPerformance.forEach((barber, index) => {
+        const rowHeight = 16
+        
+        if (index % 2 === 0) {
+          pdf.setFillColor(...colors.light)
+          pdf.rect(margin, yPosition, pageWidth - 2 * margin, rowHeight, 'F')
+        }
+        
+        const efficiency = barber.total_appointments > 0 ? 
+          (barber.paid_appointments / barber.total_appointments) * 100 : 0
+        const efficiencyColor = efficiency >= 80 ? colors.success :
+                               efficiency >= 60 ? colors.accent : colors.danger
+        
+        pdf.setTextColor(...colors.text)
+        pdf.setFontSize(10)
+        pdf.setFont('helvetica', 'normal')
+        
+        currentX = margin + 5
+        pdf.text((barber.barber_name || 'N/A').substring(0, 12), currentX, yPosition + 10)
+        currentX += barberColWidths[0]
+        
+        pdf.setFont('helvetica', 'bold')
+        pdf.text((barber.total_appointments || 0).toString(), currentX, yPosition + 10)
+        currentX += barberColWidths[1]
+        
+        pdf.text((barber.paid_appointments || 0).toString(), currentX, yPosition + 10)
+        currentX += barberColWidths[2]
+        
+        pdf.text(formatMoney(barber.total_earned || 0), currentX, yPosition + 10)
+        currentX += barberColWidths[3]
+        
+        pdf.setTextColor(...efficiencyColor)
+        pdf.setFont('helvetica', 'normal')
+        pdf.text(`${efficiency.toFixed(0)}%`, currentX, yPosition + 10)
+        
+        yPosition += rowHeight
+      })
+
+      yPosition += 25
+    }
+
+    // DETALLE DE TRANSACCIONES EN NUEVA PÁGINA
+    if (paidAppointments.length > 0) {
+      pdf.addPage()
+      yPosition = margin
+      addPageHeader()
+      yPosition += 30
+      
+      pdf.setFillColor(...colors.primary)
+      pdf.rect(margin, yPosition - 2, pageWidth - 2 * margin, 18, 'F')
+      
+      pdf.setTextColor(...colors.white)
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text('DETALLE DE TRANSACCIONES', margin + 5, yPosition + 10)
+      
+      yPosition += 25
+
+      // Encabezados de transacciones
+      const transactionHeaders = ['Fecha', 'Cliente', 'Servicio', 'Método', 'Monto']
+      const transactionColWidths = [25, 45, 30, 30, 30]
+
+      pdf.setFillColor(...colors.lightGray)
+      pdf.rect(margin, yPosition, pageWidth - 2 * margin, headerHeight, 'F')
+      
+      pdf.setTextColor(...colors.text)
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'bold')
+      
+      currentX = margin + 3
+      transactionHeaders.forEach((header, index) => {
+        pdf.text(header, currentX, yPosition + 8)
+        currentX += transactionColWidths[index]
+      })
+
+      yPosition += headerHeight
+
+      paidAppointments.slice(0, 30).forEach((transaction, index) => {
+        checkPageBreak(12, true)
+        
+        const rowHeight = 12
+        
+        if (index % 2 === 0) {
+          pdf.setFillColor(...colors.light)
+          pdf.rect(margin, yPosition, pageWidth - 2 * margin, rowHeight, 'F')
+        }
+        
+        pdf.setTextColor(...colors.text)
+        pdf.setFontSize(8)
+        pdf.setFont('helvetica', 'normal')
+        
+        const date = transaction.service_date ? 
+          format(new Date(transaction.service_date), 'dd/MM', { locale: es }) : 'N/A'
+        
+        const serviceText = transaction.service_type === 'corte' ? 'Corte' : 'C+Barba'
+        
+        currentX = margin + 3
+        pdf.text(date, currentX, yPosition + 8)
+        currentX += transactionColWidths[0]
+        
+        pdf.text((transaction.client_name || 'N/A').substring(0, 18), currentX, yPosition + 8)
+        currentX += transactionColWidths[1]
+        
+        pdf.text(serviceText, currentX, yPosition + 8)
+        currentX += transactionColWidths[2]
+        
+        pdf.text((transaction.payment_method || 'N/A').substring(0, 10), currentX, yPosition + 8)
+        currentX += transactionColWidths[3]
+        
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(formatMoney(transaction.amount || 0), currentX, yPosition + 8)
+        
+        yPosition += rowHeight
+      })
+
+      if (paidAppointments.length > 30) {
+        yPosition += 10
+        pdf.setTextColor(...colors.mediumGray)
+        pdf.setFontSize(9)
+        pdf.setFont('helvetica', 'italic')
+        pdf.text(`... y ${paidAppointments.length - 30} transacciones más`, margin + 5, yPosition)
+      }
+    }
+
+    // PIE DE PÁGINA MEJORADO
+    const addEnhancedFooter = (pageNum: number, totalPages: number) => {
+      // Línea superior
+      pdf.setDrawColor(...colors.lightGray)
+      pdf.line(margin, pageHeight - 25, pageWidth - margin, pageHeight - 25)
+      
+      // Fondo del pie
+      pdf.setFillColor(...colors.light)
+      pdf.rect(0, pageHeight - 20, pageWidth, 20, 'F')
+      
+      pdf.setTextColor(...colors.darkGray)
+      pdf.setFontSize(8)
+      pdf.setFont('helvetica', 'normal')
+      
+      // Información del sistema
+      pdf.text('Sistema de Barbería implementado por bmwebsolutionscr', margin, pageHeight - 10)
+      
+      // Número de página
+      pdf.text(`Página ${pageNum} de ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' })
+      
+      // Fecha y hora
+      pdf.text(`Generado: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, pageHeight - 10, { align: 'right' })
+    }
+
+    // Agregar pie de página mejorado a todas las páginas
+    const pageCount = (pdf as any).getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      pdf.setPage(i)
+      addEnhancedFooter(i, pageCount)
+    }
+
+    // Descargar PDF
+    const fileName = `reporte-financiero-${selectedPeriod}-${format(new Date(), 'yyyy-MM-dd')}.pdf`
+    pdf.save(fileName)
   }
 
   const generateWhatsAppMessage = async () => {
@@ -536,11 +1147,17 @@ export default function Reports() {
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     <span className="hidden sm:inline">
+                      {selectedPeriod === '7days' && 'Últimos 7 días'}
+                      {selectedPeriod === '15days' && 'Últimos 15 días'}
+                      {selectedPeriod === '30days' && 'Últimos 30 días'}
                       {selectedPeriod === 'week' && 'Esta semana'}
                       {selectedPeriod === 'month' && 'Este mes'}
                       {selectedPeriod === 'quarter' && 'Este trimestre'}
                     </span>
                     <span className="sm:hidden">
+                      {selectedPeriod === '7days' && '7 días'}
+                      {selectedPeriod === '15days' && '15 días'}
+                      {selectedPeriod === '30days' && '30 días'}
                       {selectedPeriod === 'week' && 'Semana'}
                       {selectedPeriod === 'month' && 'Mes'}
                       {selectedPeriod === 'quarter' && 'Trimestre'}
@@ -553,6 +1170,9 @@ export default function Reports() {
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border">
                     <div className="py-1">
                       {[
+                        { value: '7days', label: 'Últimos 7 días' },
+                        { value: '15days', label: 'Últimos 15 días' },
+                        { value: '30days', label: 'Últimos 30 días' },
                         { value: 'week', label: 'Esta semana' },
                         { value: 'month', label: 'Este mes' },
                         { value: 'quarter', label: 'Este trimestre' }

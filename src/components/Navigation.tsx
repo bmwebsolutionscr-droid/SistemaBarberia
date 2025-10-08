@@ -14,7 +14,8 @@ import {
   Menu, 
   X,
   Scissors,
-  CalendarDays
+  CalendarDays,
+  DollarSign
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -197,6 +198,14 @@ export default function Navigation({ children }: NavigationProps) {
           >
             <FileText className="w-5 h-5 mr-3 flex-shrink-0" />
             <span className="truncate">Reportes</span>
+          </Link>
+          <Link 
+            href="/dashboard/financial" 
+            className={getLinkClasses('/dashboard/financial')}
+            onClick={() => setSidebarOpen(false)}
+          >
+            <DollarSign className="w-5 h-5 mr-3 flex-shrink-0" />
+            <span className="truncate">Finanzas</span>
           </Link>
           <Link 
             href="/dashboard/settings" 
