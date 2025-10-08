@@ -45,7 +45,7 @@ export default function DashboardPage() {
       const { data: barbersData } = await supabase
         .from('barbers')
         .select('*')
-        .eq('barbershop_id', barbershop.id)
+        .eq('barbershop_id', (barbershop as any).id)
         .order('nombre')
 
       if (barbersData) {
@@ -53,7 +53,7 @@ export default function DashboardPage() {
       }
 
       // Obtener IDs de todos los barberos
-      const barberIds = barbersData?.map(b => b.id) || []
+      const barberIds = barbersData?.map((b: any) => b.id) || []
 
       // Obtener citas recientes con información del cliente y barbero
       const today = new Date().toISOString().split('T')[0]
@@ -75,7 +75,7 @@ export default function DashboardPage() {
       }
 
       // Calcular estadísticas
-      await calculateStats(barbershop.id, barberIds)
+      await calculateStats((barbershop as any).id, barberIds)
 
     } catch (error) {
       console.error('Error loading dashboard data:', error)

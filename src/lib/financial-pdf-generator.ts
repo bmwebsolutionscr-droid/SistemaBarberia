@@ -279,7 +279,7 @@ export class FinancialPDFGenerator {
   }
 
   private addFooter() {
-    const pageCount = this.doc.internal.getNumberOfPages()
+    const pageCount = (this.doc as any).internal.getNumberOfPages()
     
     for (let i = 1; i <= pageCount; i++) {
       this.doc.setPage(i)

@@ -176,7 +176,7 @@ export default function Reports() {
           const { data: barbersData, error: barbersError } = await supabase
             .from('barbers')
             .select('*')
-            .eq('barbershop_id', barbershopData.id)
+            .eq('barbershop_id', (barbershopData as any).id)
             .eq('activo', true)
             .order('nombre')
 
@@ -967,7 +967,7 @@ export default function Reports() {
       // Crear un Set de slots ocupados considerando la duración completa de cada cita
       const occupiedSlots = new Set<string>()
       
-      ;(existingAppointments || []).forEach(apt => {
+      ;(existingAppointments || []).forEach((apt: any) => {
         // Asegurar formato consistente de fecha (YYYY-MM-DD)
         let normalizedDate = apt.fecha
         if (apt.fecha.includes('/')) {

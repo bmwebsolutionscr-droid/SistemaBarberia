@@ -85,7 +85,7 @@ export default function FinancialPage() {
       setBarbershop(barbershopData)
 
       // Cargar citas pendientes usando consulta directa
-      await loadPendingAppointments(barbershopData.id, barbershopData)
+      await loadPendingAppointments((barbershopData as any).id, barbershopData as any)
 
     } catch (error) {
       console.error('Error loading initial data:', error)
@@ -210,7 +210,7 @@ export default function FinancialPage() {
       const montoFinal = (parseFloat(paymentData.monto_pagado) || precio_final) - parseFloat(paymentData.descuento)
       
       // Usar un update más simple
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from('appointments')
         .update({
           estado: 'completada',
@@ -219,8 +219,8 @@ export default function FinancialPage() {
           fecha_pago: new Date().toISOString(),
           metodo_pago: paymentData.metodo_pago,
           monto_pagado: montoFinal
-        } as any)
-        .eq('id', selectedAppointment.id)
+        })
+        .eq('id', (selectedAppointment as any).id)
 
       if (updateError) throw updateError
 

@@ -114,12 +114,12 @@ export default function Configuration() {
         }
 
         if (barbershop) {
-          setBarbershopId(barbershop.id)
+          setBarbershopId((barbershop as any).id)
           setConfig({
-            nombre: barbershop.nombre || '',
-            email: barbershop.email || '',
-            telefono: barbershop.telefono || '',
-            direccion: barbershop.direccion || '',
+            nombre: (barbershop as any).nombre || '',
+            email: (barbershop as any).email || '',
+            telefono: (barbershop as any).telefono || '',
+            direccion: (barbershop as any).direccion || '',
             descripcion: (barbershop as any).descripcion || '',
             hora_apertura: (barbershop as any).hora_apertura || '08:00',
             hora_cierre: (barbershop as any).hora_cierre || '18:00',
@@ -209,8 +209,8 @@ export default function Configuration() {
 
     setSaving(true)
     try {
-      const { error } = await supabase
-        .from('barbershops')
+      const { error } = await (supabase
+        .from('barbershops') as any)
         .update({
           nombre: config.nombre,
           telefono: config.telefono,

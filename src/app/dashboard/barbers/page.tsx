@@ -60,7 +60,7 @@ export default function BarbersPage() {
       setCurrentBarbershop(barbershop)
 
       // Cargar barberos
-      await loadBarbers(barbershop.id)
+      await loadBarbers((barbershop as any).id)
       
     } catch (error) {
       console.error('Error loading data:', error)
@@ -93,8 +93,8 @@ export default function BarbersPage() {
 
     try {
       if (editingBarber) {
-        const { error } = await supabase
-          .from('barbers')
+        const { error } = await (supabase
+          .from('barbers') as any)
           .update({
             nombre: formData.nombre,
             telefono: formData.telefono,
@@ -106,8 +106,8 @@ export default function BarbersPage() {
         if (error) throw error
         toast.success('Barbero actualizado exitosamente')
       } else {
-        const { error } = await supabase
-          .from('barbers')
+        const { error } = await (supabase
+          .from('barbers') as any)
           .insert({
             barbershop_id: currentBarbershop.id,
             nombre: formData.nombre,
@@ -121,7 +121,7 @@ export default function BarbersPage() {
       }
 
       // Recargar datos
-      await loadBarbers(currentBarbershop.id)
+      await loadBarbers((currentBarbershop as any).id)
       resetForm()
       setShowModal(false)
 
@@ -167,8 +167,8 @@ export default function BarbersPage() {
 
   const toggleBarberStatus = async (barberId: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
-        .from('barbers')
+      const { error } = await (supabase
+        .from('barbers') as any)
         .update({ activo: !currentStatus })
         .eq('id', barberId)
 
@@ -176,7 +176,7 @@ export default function BarbersPage() {
 
       toast.success(`Barbero ${!currentStatus ? 'activado' : 'desactivado'} exitosamente`)
       if (currentBarbershop) {
-        await loadBarbers(currentBarbershop.id)
+        await loadBarbers((currentBarbershop as any).id)
       }
     } catch (error) {
       console.error('Error updating barber status:', error)

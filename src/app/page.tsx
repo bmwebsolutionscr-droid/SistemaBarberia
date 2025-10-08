@@ -42,7 +42,7 @@ export default function LoginPage() {
           return
         }
 
-        toast.success('¡Bienvenido a ' + barbershop.nombre + '!')
+        toast.success('¡Bienvenido a ' + (barbershop as any).nombre + '!')
         router.push('/dashboard')
       }
     } catch (error) {

@@ -83,13 +83,13 @@ export default function AppointmentsPage() {
       setCurrentBarbershop(barbershop)
 
       // Cargar barberos
-      await loadBarbers(barbershop.id)
+      await loadBarbers((barbershop as any).id)
       
       // Cargar citas de todos los barberos
-      await loadAppointments(barbershop.id)
+      await loadAppointments((barbershop as any).id)
       
       // Cargar clientes
-      await loadClients(barbershop.id)
+      await loadClients((barbershop as any).id)
       
     } catch (error) {
       console.error('Error loading data:', error)
@@ -209,12 +209,12 @@ export default function AppointmentsPage() {
             barbershop_id: currentBarbershop.id,
             nombre: formData.clientName,
             telefono: formData.clientPhone.trim() || null
-          })
+          } as any)
           .select()
           .single()
 
         if (clientError) throw clientError
-        clientId = newClient.id
+        clientId = (newClient as any).id
       }
 
       // Crear o actualizar la cita
@@ -238,8 +238,8 @@ export default function AppointmentsPage() {
             return
           }
         }
-        const { error } = await supabase
-          .from('appointments')
+        const { error } = await (supabase
+          .from('appointments') as any)
           .update({
             client_id: clientId,
             barber_id: formData.barberId,
@@ -268,7 +268,7 @@ export default function AppointmentsPage() {
             duracion_minutos: serviceDuration,
             estado: formData.estado,
             notas: formData.notas
-          })
+          } as any)
 
         if (error) throw error
         toast.success('Cita agendada exitosamente')
@@ -500,13 +500,13 @@ export default function AppointmentsPage() {
 
       // Verificar solapamientos con citas existentes
       for (const appointment of existingAppointments) {
-        if (excludeId && appointment.id === excludeId) continue
+        if (excludeId && (appointment as any).id === excludeId) continue
 
         const existingDuration = (appointment as any).duracion_minutos || config?.duracion_cita || 30
         const hasOverlap = doTimeSlotsOverlap(
           startTime,
           duration,
-          appointment.hora,
+          (appointment as any).hora,
           existingDuration
         )
 
