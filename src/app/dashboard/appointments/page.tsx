@@ -398,22 +398,40 @@ export default function AppointmentsPage() {
     const allSlots = generateTimeSlots(config)
     const occupiedSlots = getOccupiedSlotsForDate(formData.fecha)
     
-    // Filtrar slots ocupados, pero incluir la hora actual si estamos editando
+    // Filtrar slots ocupados considerando la duración del servicio (sub-slots de 15min)
+    const serviceDuration = getServiceDuration(formData.tipo_servicio, config)
+
     const availableSlots = allSlots.filter(slot => {
-      // Si estamos editando y este es el slot actual, incluirlo
+      // Mantener la hora original cuando estamos editando (permitir seleccionar la hora actual)
       if (editingAppointment && formData.hora === slot) {
         return true
       }
-      // De lo contrario, solo incluir si no está ocupado
-      return !occupiedSlots.has(slot)
+
+      // Para cada slot candidato, generar sus sub-slots de 15 minutos según la duración
+      // y verificar que ninguno esté en los occupiedSlots
+      try {
+        const start = parse(slot, 'HH:mm', new Date())
+        const end = addMinutes(start, serviceDuration)
+        let cur = start
+        while (cur < end) {
+          const sub = format(cur, 'HH:mm')
+          if (occupiedSlots.has(sub)) return false
+          cur = addMinutes(cur, 15)
+        }
+      } catch (e) {
+        // En caso de error al parsear, descartar el slot por seguridad
+        return false
+      }
+
+      return true
     })
-    
+
     // Asegurar que la hora actual esté incluida si estamos editando
     if (editingAppointment && formData.hora && !availableSlots.includes(formData.hora)) {
       availableSlots.push(formData.hora)
       availableSlots.sort()
     }
-    
+
     return availableSlots
   }
 
