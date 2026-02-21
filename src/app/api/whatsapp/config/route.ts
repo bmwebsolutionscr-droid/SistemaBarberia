@@ -50,8 +50,7 @@ export async function POST(request: NextRequest) {
         //   })
         //   .eq('id', barberShopId)
 
-        // Por ahora, simulamos éxito
-        console.log(`📱 WhatsApp habilitado para barbería ${barberShopId} con número ${phoneNumber}`)
+        // Por ahora, simulamos éxito (log eliminado)
 
         return NextResponse.json({
           success: true,
@@ -73,8 +72,7 @@ export async function POST(request: NextRequest) {
         //   .update({ whatsapp_activo: false })
         //   .eq('id', barberShopId)
 
-        // Por ahora, simulamos éxito
-        console.log(`📱 WhatsApp deshabilitado para barbería ${barberShopId}`)
+        // Por ahora, simulamos éxito (log eliminado)
 
         return NextResponse.json({
           success: true,

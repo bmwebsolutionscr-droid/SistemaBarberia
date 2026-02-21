@@ -34,12 +34,7 @@ class WhatsAppService {
 
   async sendMessage(params: WhatsAppMessage): Promise<WhatsAppResponse> {
     try {
-      // Por ahora, solo simulamos el envío
-      console.log('📱 Simulando envío de WhatsApp:', {
-        to: params.to,
-        message: params.message.substring(0, 50) + '...',
-        type: params.type || 'text'
-      })
+      // Por ahora, solo simulamos el envío (logs eliminados)
 
       // En el futuro aquí iría la integración real con WhatsApp Business API
       if (this.isConfigured && this.apiUrl && this.apiKey) {
@@ -194,7 +189,7 @@ ${params.promotion}
     try {
       // Por ahora retornamos una configuración simulada
       // En el futuro esto vendría de la base de datos
-      console.log(`📱 Obteniendo configuración WhatsApp para barbería ${barberShopId}`)
+      // Obteniendo configuración WhatsApp para barbería (log eliminado)
       
       return {
         whatsapp_activo: true,
@@ -235,7 +230,7 @@ export const validatePhoneNumber = (phone: string): boolean => {
 // Función para enviar notificaciones de citas (requerida por las APIs)
 export const sendAppointmentNotification = async (appointmentId: string, type: string): Promise<boolean> => {
   try {
-    console.log(`📱 Simulando notificación ${type} para cita ${appointmentId}`)
+    // Simulando notificación (log eliminado)
     
     // En una implementación real, aquí se obtendría la información de la cita
     // y se enviaría la notificación correspondiente via WhatsApp
@@ -251,15 +246,8 @@ export const sendAppointmentNotification = async (appointmentId: string, type: s
 // Función para enviar recordatorios automáticos (requerida por las APIs)
 export const sendAutomaticReminders = async (): Promise<number> => {
   try {
-    console.log('📱 Simulando envío de recordatorios automáticos')
-    
-    // En una implementación real, aquí se buscarían las citas
-    // del próximo día y se enviarían recordatorios automáticos
-    
-    // Simulamos que se enviaron algunos recordatorios
+    // Simulando envío de recordatorios automáticos (logs eliminados)
     const mockSentCount = Math.floor(Math.random() * 10) + 1
-    console.log(`📱 Simulados ${mockSentCount} recordatorios enviados`)
-    
     return mockSentCount
   } catch (error) {
     console.error('Error enviando recordatorios automáticos:', error)

@@ -167,7 +167,7 @@ export default function Reports() {
           .select('*')
           .single()
 
-        console.log('Barbershop query result:', { barbershopData, barbershopError })
+        // Barbershop query result (log removed)
 
         // Solo proceder si tenemos una barbería
         let activeBarbersForShop: any[] = []
@@ -180,7 +180,7 @@ export default function Reports() {
             .eq('activo', true)
             .order('nombre')
 
-          console.log('Barberos query result:', { barbersData, barbersError })
+          // Barberos query result (log removed)
           activeBarbersForShop = barbersData || []
         }
 
@@ -188,13 +188,13 @@ export default function Reports() {
         const { data: allBarbershopsDebug } = await supabase
           .from('barbershops')
           .select('*')
-        console.log('All barbershops:', allBarbershopsDebug)
+        // All barbershops (log removed)
 
         // Debug: Verificar si la consulta a barbers funciona  
         const { data: allBarbersDebug } = await supabase
           .from('barbers')
           .select('*')
-        console.log('All barbers:', allBarbersDebug)
+        // All barbers (log removed)
 
         if (appointmentsData) setAppointments(appointmentsData)
         if (activeBarbersForShop) setBarbers(activeBarbersForShop)
@@ -316,7 +316,7 @@ export default function Reports() {
           startDate = addDays(endDate, -7)
       }
 
-      console.log('Generando reporte para período:', { startDate, endDate })
+      // Generando reporte para período (log eliminado)
 
       // Obtener datos financieros del período
       const { data: financialSummary, error: summaryError } = await supabase
@@ -357,11 +357,7 @@ export default function Reports() {
         throw barberError
       }
 
-      console.log('Datos obtenidos:', {
-        financialSummary,
-        paidAppointments,
-        barberPerformance
-      })
+      // Datos obtenidos (log eliminado)
 
       // Generar PDF
       await generateFinancialPDF({
@@ -1017,7 +1013,7 @@ export default function Reports() {
                   
                   // Debug para fecha problemática
                   if (dateKey === '2025-09-15' && (time === '11:00' || time === '11:30' || time === '12:00' || time === '12:30')) {
-                    console.log(`   Barbero ${barber.nombre} (${barber.id}): ${disponible ? 'LIBRE' : 'OCUPADO'} - slot: ${slotKey}`)
+                    // Debug por barbero (log eliminado)
                   }
                   
                   return disponible
@@ -1027,7 +1023,7 @@ export default function Reports() {
                 
                 // Debug final para fecha problemática
                 if (dateKey === '2025-09-15' && (time === '11:00' || time === '11:30' || time === '12:00' || time === '12:30')) {
-                  console.log(`   RESULTADO FINAL para ${time}: ${isSlotAvailable ? 'DISPONIBLE' : 'OCUPADO'} (${barberosDisponibles.length} barberos libres)`)
+                  // Resultado final por slot (log eliminado)
                 }
               }
               
@@ -1043,7 +1039,7 @@ export default function Reports() {
         }
       })
 
-      console.log(`Slots disponibles encontrados: ${availableSlots.length}`)
+      // Slots disponibles encontrados (log eliminado)
 
       // Agrupar por día
       const slotsByDay = availableSlots.reduce((acc, slot) => {

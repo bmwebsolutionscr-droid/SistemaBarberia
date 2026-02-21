@@ -17,6 +17,7 @@ export interface BarbershopConfig {
   whatsapp_activo: boolean
   whatsapp_numero: string | null
   tiempo_cancelacion: number
+  tipos_servicio: Array<{ key: string; label: string; precio: number; duracion: number }>
 }
 
 // Configuración por defecto
@@ -38,6 +39,12 @@ const defaultConfig: BarbershopConfig = {
   tiempo_cancelacion: 120 // 2 horas en minutos
 }
 
+// Default services list
+const defaultServiceTypes = [
+  { key: 'corte', label: 'Corte Normal', precio: 15000, duracion: 30 },
+  { key: 'corte_barba', label: 'Corte + Barba', precio: 20000, duracion: 60 }
+]
+
 export async function getBarbershopConfig(): Promise<BarbershopConfig> {
   try {
     const { data: barbershop, error } = await supabase
@@ -57,22 +64,7 @@ export async function getBarbershopConfig(): Promise<BarbershopConfig> {
     // Usar any para acceder a propiedades que pueden no estar en el tipo
     const barbershopData = barbershop as any
 
-    // Debug: Verificar si los campos de almuerzo existen
-    console.log('🍽️ Debug - Campos de almuerzo en BD:', {
-      hora_almuerzo_inicio: barbershopData.hora_almuerzo_inicio,
-      hora_almuerzo_fin: barbershopData.hora_almuerzo_fin,
-      almuerzo_activo: barbershopData.almuerzo_activo,
-      tipos: {
-        hora_almuerzo_inicio: typeof barbershopData.hora_almuerzo_inicio,
-        hora_almuerzo_fin: typeof barbershopData.hora_almuerzo_fin,
-        almuerzo_activo: typeof barbershopData.almuerzo_activo
-      },
-      exists: {
-        hora_almuerzo_inicio: 'hora_almuerzo_inicio' in barbershopData,
-        hora_almuerzo_fin: 'hora_almuerzo_fin' in barbershopData,
-        almuerzo_activo: 'almuerzo_activo' in barbershopData
-      }
-    })
+    // Debug: verificar campos de almuerzo en BD (logs eliminados en producción)
 
     // Función auxiliar para normalizar valores de tiempo
     const normalizeTimeValue = (value: any, fallback: string) => {
@@ -96,6 +88,21 @@ export async function getBarbershopConfig(): Promise<BarbershopConfig> {
       return fallback
     }
 
+    // Parsear tipos_servicio si viene como string
+    let tiposFromDb: any = undefined
+    try {
+      if (barbershopData.tipos_servicio) {
+        tiposFromDb = typeof barbershopData.tipos_servicio === 'string' ? JSON.parse(barbershopData.tipos_servicio) : barbershopData.tipos_servicio
+      }
+    } catch (e) {
+      console.error('Error parsing tipos_servicio in getBarbershopConfig:', e, barbershopData.tipos_servicio)
+      tiposFromDb = undefined
+    }
+
+    // Derivar duraciones desde tipos_servicio cuando sea posible
+    const corteTipo = tiposFromDb && Array.isArray(tiposFromDb) ? tiposFromDb.find((s: any) => s.key === 'corte') : undefined
+    const corteBarbaTipo = tiposFromDb && Array.isArray(tiposFromDb) ? tiposFromDb.find((s: any) => s.key === 'corte_barba') : undefined
+
     const config = {
       hora_apertura: normalizeTimeValue(barbershopData.hora_apertura, defaultConfig.hora_apertura),
       hora_cierre: normalizeTimeValue(barbershopData.hora_cierre, defaultConfig.hora_cierre),
@@ -103,8 +110,8 @@ export async function getBarbershopConfig(): Promise<BarbershopConfig> {
       hora_almuerzo_fin: normalizeTimeValue(barbershopData.hora_almuerzo_fin, defaultConfig.hora_almuerzo_fin),
       almuerzo_activo: barbershopData.almuerzo_activo ?? defaultConfig.almuerzo_activo,
       dias_laborales: barbershopData.dias_laborales || defaultConfig.dias_laborales,
-      duracion_cita: barbershopData.duracion_cita || defaultConfig.duracion_cita,
-      duracion_corte_barba: barbershopData.duracion_corte_barba || defaultConfig.duracion_corte_barba,
+      duracion_cita: (corteTipo && corteTipo.duracion) || barbershopData.duracion_cita || defaultConfig.duracion_cita,
+      duracion_corte_barba: (corteBarbaTipo && corteBarbaTipo.duracion) || barbershopData.duracion_corte_barba || defaultConfig.duracion_corte_barba,
       precio_corte_adulto: barbershopData.precio_corte_adulto || defaultConfig.precio_corte_adulto,
       precio_corte_nino: barbershopData.precio_corte_nino || defaultConfig.precio_corte_nino,
       precio_barba: barbershopData.precio_barba || defaultConfig.precio_barba,
@@ -112,9 +119,11 @@ export async function getBarbershopConfig(): Promise<BarbershopConfig> {
       whatsapp_activo: barbershopData.whatsapp_activo ?? defaultConfig.whatsapp_activo,
       whatsapp_numero: barbershopData.whatsapp_numero || defaultConfig.whatsapp_numero,
       tiempo_cancelacion: barbershopData.tiempo_cancelacion || defaultConfig.tiempo_cancelacion
+      ,
+      tipos_servicio: tiposFromDb || defaultServiceTypes
     }
 
-    console.log('🍽️ Debug - Configuración final cargada:', config)
+    // Configuración final cargada (log eliminado en producción)
     return config
   } catch (error) {
     console.error('Error al cargar configuración:', error)
@@ -125,31 +134,19 @@ export async function getBarbershopConfig(): Promise<BarbershopConfig> {
 export function generateTimeSlots(config: BarbershopConfig): string[] {
   const slots: string[] = []
   
-  // Debug: Log de la configuración recibida
-  console.log('🍽️ Debug - generateTimeSlots recibió configuración:', {
-    almuerzo_activo: config.almuerzo_activo,
-    hora_almuerzo_inicio: config.hora_almuerzo_inicio,
-    hora_almuerzo_fin: config.hora_almuerzo_fin,
-    hora_apertura: config.hora_apertura,
-    hora_cierre: config.hora_cierre
-  })
+  // generateTimeSlots recibió configuración (log eliminado en producción)
   
   try {
     const startTime = parse(config.hora_apertura, 'HH:mm', new Date())
     const endTime = parse(config.hora_cierre, 'HH:mm', new Date())
-    const duration = config.duracion_cita
+    // Usar granularidad mínima de 15 minutos para permitir servicios con diferente duración
+    const step = 15
 
     // Parsear horarios de almuerzo si están activos
     let lunchStart: Date | null = null
     let lunchEnd: Date | null = null
     
-    console.log('🍽️ Debug - Valores de almuerzo recibidos:', {
-      almuerzo_activo: config.almuerzo_activo,
-      hora_almuerzo_inicio: config.hora_almuerzo_inicio,
-      hora_almuerzo_fin: config.hora_almuerzo_fin,
-      tipo_inicio: typeof config.hora_almuerzo_inicio,
-      tipo_fin: typeof config.hora_almuerzo_fin
-    })
+    // Valores de almuerzo recibidos (log eliminado en producción)
     
     if (config.almuerzo_activo && config.hora_almuerzo_inicio && config.hora_almuerzo_fin) {
       try {
@@ -157,7 +154,7 @@ export function generateTimeSlots(config: BarbershopConfig): string[] {
         const inicioStr = String(config.hora_almuerzo_inicio).trim()
         const finStr = String(config.hora_almuerzo_fin).trim()
         
-        console.log('🍽️ Debug - Strings de tiempo:', { inicioStr, finStr })
+        // Strings de tiempo verificados (log eliminado en producción)
         
         // Validar formato básico HH:mm o HH:mm:ss
         const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/
@@ -173,18 +170,15 @@ export function generateTimeSlots(config: BarbershopConfig): string[] {
           throw new Error(`Fechas inválidas después del parseo: inicio=${lunchStart}, fin=${lunchEnd}`)
         }
         
-        console.log('🍽️ Debug - Horario de almuerzo ACTIVO y válido:', {
-          lunchStart: format(lunchStart, 'HH:mm'),
-          lunchEnd: format(lunchEnd, 'HH:mm')
-        })
+        // Horario de almuerzo activo y válido (log eliminado en producción)
       } catch (error) {
         console.error('🚨 Error al parsear horarios de almuerzo:', error)
-        console.log('🔧 Desactivando almuerzo por error en el parseo')
+        // Desactivando almuerzo por error en el parseo (log eliminado)
         lunchStart = null
         lunchEnd = null
       }
     } else {
-      console.log('🍽️ Debug - Horario de almuerzo DESACTIVADO o campos faltantes')
+      // Horario de almuerzo desactivado o campos faltantes (log eliminado)
     }
 
     let currentTime = startTime
@@ -202,20 +196,17 @@ export function generateTimeSlots(config: BarbershopConfig): string[] {
                      (currentTime.getTime() < lunchEnd.getTime())
         
         // Debug detallado para este slot específico
-        if (isLunchTime) {
-          console.log(`🍽️ Debug - Slot ${timeString} está en horario de almuerzo (${config.hora_almuerzo_inicio} - ${config.hora_almuerzo_fin})`)
-        }
+        // Slot en horario de almuerzo (log eliminado)
       }
       
       // Solo agregar el slot si NO está en horario de almuerzo
-      if (!isLunchTime) {
-        slots.push(timeString)
-        console.log(`✅ Debug - Slot ${timeString} INCLUIDO (disponible)`)
-      } else {
-        console.log(`❌ Debug - Slot ${timeString} EXCLUIDO por horario de almuerzo`)
-      }
+        if (!isLunchTime) {
+          slots.push(timeString)
+        } else {
+          // slot excluido por almuerzo (log eliminado)
+        }
       
-      currentTime = addMinutes(currentTime, duration)
+      currentTime = addMinutes(currentTime, step)
     }
   } catch (error) {
     console.error('Error al generar slots de tiempo:', error)
@@ -224,7 +215,7 @@ export function generateTimeSlots(config: BarbershopConfig): string[] {
             '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30']
   }
 
-  console.log('🍽️ Debug - Slots finales generados:', slots)
+  // Slots finales generados (log eliminado en producción)
   return slots
 }
 
@@ -267,11 +258,23 @@ export function getDayNameFromDate(date: Date): string {
   return dayNames[date.getDay()]
 }
 
-export function getServiceDuration(serviceType: 'corte' | 'corte_barba', config: BarbershopConfig): number {
+export function getServiceDuration(serviceType: string, config: BarbershopConfig): number {
+  try {
+    const found = config.tipos_servicio.find(s => s.key === serviceType)
+    if (found) return found.duracion
+  } catch (e) {
+    // fallthrough
+  }
   return serviceType === 'corte_barba' ? config.duracion_corte_barba : config.duracion_cita
 }
 
-export function getServicePrice(serviceType: 'corte' | 'corte_barba', config: BarbershopConfig): number {
+export function getServicePrice(serviceType: string, config: BarbershopConfig): number {
+  try {
+    const found = config.tipos_servicio.find(s => s.key === serviceType)
+    if (found) return found.precio
+  } catch (e) {
+    // fallthrough
+  }
   return serviceType === 'corte_barba' ? config.precio_combo : config.precio_corte_adulto
 }
 

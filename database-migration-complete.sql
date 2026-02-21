@@ -38,7 +38,8 @@ DROP TYPE IF EXISTS appointment_status CASCADE;
 CREATE TYPE appointment_status AS ENUM ('programada', 'confirmada', 'cancelada', 'completada');
 
 -- Tipo para tipo de servicio
-CREATE TYPE service_type AS ENUM ('corte', 'corte_barba');
+-- Nota: se omite la creación del tipo ENUM `service_type` para permitir tipos de servicio dinámicos.
+-- Si ya existe en la base de datos, evitar recrearlo. Usamos VARCHAR en la tabla `appointments`.
 
 -- ===================================================================
 -- 4. CREAR TABLAS PRINCIPALES
@@ -106,7 +107,7 @@ CREATE TABLE appointments (
     fecha DATE NOT NULL,
     hora TIME NOT NULL,
     duracion_minutos INTEGER DEFAULT 30,
-    tipo_servicio service_type DEFAULT 'corte',
+    tipo_servicio VARCHAR(50) DEFAULT 'corte',
     precio DECIMAL(10,2),
     estado appointment_status DEFAULT 'programada',
     notas TEXT,
