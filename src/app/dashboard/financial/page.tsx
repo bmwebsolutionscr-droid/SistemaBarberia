@@ -96,7 +96,7 @@ export default function FinancialPage() {
 
   const loadPendingAppointments = async (barbershopId: string, barbershopData?: any) => {
     try {
-      console.log('Loading appointments for barbershop:', barbershopId)
+      // Loading appointments for barbershop (log removed)
       
       // Consulta directa para obtener citas pendientes con precios dinámicos
       const { data, error } = await supabase
@@ -125,7 +125,7 @@ export default function FinancialPage() {
         return
       }
 
-      console.log('Raw appointment data:', data)
+      // Raw appointment data (log removed)
 
       // Procesar y mapear los datos
       const processedAppointments = (data || []).map((appointment: any) => {
@@ -150,24 +150,15 @@ export default function FinancialPage() {
         // Calcular precio dinámico según el tipo de servicio
         let precio_dinamico = appointment.precio || 0; // Usar precio existente como fallback
         
-        console.log('Processing appointment:', {
-          id: appointment.id,
-          tipo_servicio: appointment.tipo_servicio,
-          precio_original: appointment.precio,
-          barbershops: appointment.barbershops
-        });
+        // Processing appointment (log removed)
         
         // Intentar obtener precio de los datos de barbershop en la consulta
         if (appointment.barbershops && appointment.barbershops.length > 0) {
           const precios = appointment.barbershops[0];
-          console.log('Precios disponibles desde consulta:', precios);
           precio_dinamico = calcularPrecioDinamico(appointment.tipo_servicio, precios);
-          console.log('Precio dinámico desde consulta:', precio_dinamico);
         } else {
-          console.log('No hay datos de barbershops en consulta, usando fallback');
-          // Fallback: usar los precios de la barbería principal
+          // No hay datos de barbershops en consulta, usando fallback
           precio_dinamico = calcularPrecioDinamico(appointment.tipo_servicio, barbershopData);
-          console.log('Precio dinámico desde fallback:', precio_dinamico);
         }
 
         return {
@@ -184,7 +175,7 @@ export default function FinancialPage() {
         }
       })
 
-      console.log('Processed appointments with dynamic pricing:', processedAppointments)
+      // Processed appointments with dynamic pricing (log removed)
       setPendingAppointments(processedAppointments)
 
     } catch (error) {

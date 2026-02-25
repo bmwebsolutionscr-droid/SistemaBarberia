@@ -44,6 +44,7 @@ interface ConfigurationData {
   precio_corte_nino: number
   precio_barba: number
   precio_combo: number
+  tipos_servicio?: Array<{ key: string; label: string; precio: number; duracion: number }>
   
   // WhatsApp
   whatsapp_activo: boolean
@@ -83,6 +84,10 @@ export default function Configuration() {
     precio_corte_nino: 10000,
     precio_barba: 8000,
     precio_combo: 20000,
+    tipos_servicio: [
+      { key: 'corte', label: 'Corte Normal', precio: 15000, duracion: 30 },
+      { key: 'corte_barba', label: 'Corte + Barba', precio: 20000, duracion: 60 }
+    ],
     whatsapp_activo: true,
     whatsapp_numero: '',
     tiempo_cancelacion: 2,
@@ -93,13 +98,16 @@ export default function Configuration() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [barbershopId, setBarbershopId] = useState<string>('')
+  const [newServiceName, setNewServiceName] = useState<string>('')
+  const [newServicePrice, setNewServicePrice] = useState<number>(0)
+  const [newServiceDuration, setNewServiceDuration] = useState<number>(30)
 
   // Cargar configuración actual
   useEffect(() => {
     const loadConfiguration = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
-        
+
         if (!user?.email) return
 
         const { data: barbershop, error } = await supabase
@@ -115,6 +123,23 @@ export default function Configuration() {
 
         if (barbershop) {
           setBarbershopId((barbershop as any).id)
+
+          // Asegurar que tipos_servicio venga como array (puede ser string desde la DB)
+          const rawTipos = (barbershop as any).tipos_servicio
+          let parsedTipos: any = undefined
+          try {
+            if (rawTipos) {
+              parsedTipos = typeof rawTipos === 'string' ? JSON.parse(rawTipos) : rawTipos
+            }
+          } catch (e) {
+            console.error('Error parsing tipos_servicio from DB:', e, rawTipos)
+            parsedTipos = undefined
+          }
+
+          // Derivar duraciones principales desde tipos_servicio si está disponible
+          const corteFromTipos = parsedTipos ? parsedTipos.find((s: any) => s.key === 'corte') : undefined
+          const corteBarbaFromTipos = parsedTipos ? parsedTipos.find((s: any) => s.key === 'corte_barba') : undefined
+
           setConfig({
             nombre: (barbershop as any).nombre || '',
             email: (barbershop as any).email || '',
@@ -127,11 +152,16 @@ export default function Configuration() {
             hora_almuerzo_fin: (barbershop as any).hora_almuerzo_fin || '13:00',
             almuerzo_activo: (barbershop as any).almuerzo_activo ?? true,
             dias_laborales: (barbershop as any).dias_laborales || ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'],
-            duracion_cita: (barbershop as any).duracion_cita || 30,
+            duracion_cita: (corteFromTipos?.duracion) || (barbershop as any).duracion_cita || 30,
             precio_corte_adulto: (barbershop as any).precio_corte_adulto || 15000,
             precio_corte_nino: (barbershop as any).precio_corte_nino || 10000,
             precio_barba: (barbershop as any).precio_barba || 8000,
             precio_combo: (barbershop as any).precio_combo || 20000,
+            duracion_corte_barba: (corteBarbaFromTipos?.duracion) || (barbershop as any).duracion_corte_barba || 60,
+            tipos_servicio: parsedTipos || [
+              { key: 'corte', label: 'Corte Normal', precio: 15000, duracion: 30 },
+              { key: 'corte_barba', label: 'Corte + Barba', precio: 20000, duracion: 60 }
+            ],
             whatsapp_activo: (barbershop as any).whatsapp_activo ?? true,
             whatsapp_numero: (barbershop as any).whatsapp_numero || '',
             tiempo_cancelacion: (barbershop as any).tiempo_cancelacion || 2,
@@ -209,6 +239,26 @@ export default function Configuration() {
 
     setSaving(true)
     try {
+      // Guardando configuración (debug logs removed)
+
+      // Enviar como objeto para JSONB (no como string)
+      const tiposPayloadObj = typeof config.tipos_servicio === 'string' ? JSON.parse(config.tipos_servicio as any) : config.tipos_servicio
+
+      // Derivar duraciones principales desde config.tipos_servicio cuando existan
+      let duracionCitaPayload = config.duracion_cita
+      let duracionCorteBarbaPayload = (config as any).duracion_corte_barba || 60
+      try {
+        const tiposArray = tiposPayloadObj
+        if (Array.isArray(tiposArray)) {
+          const c = tiposArray.find((s: any) => s.key === 'corte')
+          const cb = tiposArray.find((s: any) => s.key === 'corte_barba')
+          if (c && c.duracion) duracionCitaPayload = c.duracion
+          if (cb && cb.duracion) duracionCorteBarbaPayload = cb.duracion
+        }
+      } catch (e) {
+        // ignore parse error
+      }
+
       const { error } = await (supabase
         .from('barbershops') as any)
         .update({
@@ -222,11 +272,13 @@ export default function Configuration() {
           hora_almuerzo_fin: config.hora_almuerzo_fin,
           almuerzo_activo: config.almuerzo_activo,
           dias_laborales: config.dias_laborales,
-          duracion_cita: config.duracion_cita,
           precio_corte_adulto: config.precio_corte_adulto,
           precio_corte_nino: config.precio_corte_nino,
           precio_barba: config.precio_barba,
           precio_combo: config.precio_combo,
+          duracion_cita: duracionCitaPayload,
+          duracion_corte_barba: duracionCorteBarbaPayload,
+          tipos_servicio: tiposPayloadObj,
           whatsapp_activo: config.whatsapp_activo,
           whatsapp_numero: config.whatsapp_numero,
           tiempo_cancelacion: config.tiempo_cancelacion,
@@ -236,6 +288,41 @@ export default function Configuration() {
         })
         .eq('id', barbershopId)
 
+      // Resultado de update (log eliminado)
+
+      // Recargar desde la base de datos para asegurar que el valor persistió
+      if (!error) {
+        try {
+          const { data: refreshed, error: refreshError } = await supabase
+            .from('barbershops')
+            .select('*')
+            .eq('id', barbershopId)
+            .single()
+
+          if (refreshError) {
+            console.error('Error recargando barbería después de guardar:', refreshError)
+          } else if (refreshed) {
+            const rawTipos = (refreshed as any).tipos_servicio
+            const parsed = typeof rawTipos === 'string' ? JSON.parse(rawTipos) : rawTipos
+            // Actualizar también las duraciones principales desde lo recargado
+            let durCita = (refreshed as any).duracion_cita
+            let durCorteBarba = (refreshed as any).duracion_corte_barba
+            try {
+              if (parsed && Array.isArray(parsed)) {
+                const c = parsed.find((s: any) => s.key === 'corte')
+                const cb = parsed.find((s: any) => s.key === 'corte_barba')
+                if (c && c.duracion) durCita = c.duracion
+                if (cb && cb.duracion) durCorteBarba = cb.duracion
+              }
+            } catch (e) {
+              // ignore
+            }
+            setConfig(prev => ({ ...prev, tipos_servicio: parsed || prev.tipos_servicio, duracion_cita: durCita, duracion_corte_barba: durCorteBarba }))
+          }
+        } catch (e) {
+          console.error('Error al recargar barbería después de guardar:', e)
+        }
+      }
       if (error) {
         console.error('Error al guardar:', error)
         toast.error('Error al guardar la configuración')
@@ -617,8 +704,78 @@ export default function Configuration() {
                 </div>
               </div>
             </div>
+              {/* Servicios Personalizados */}
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                  Servicios (Agregar / Editar)
+                </h2>
 
-            {/* WhatsApp y Comunicaciones */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    {(config.tipos_servicio || []).map(s => (
+                      <div key={s.key} className="flex items-center justify-between border p-2 rounded">
+                        <div>
+                          <div className="font-medium capitalize">{s.label}</div>
+                          <div className="text-xs text-gray-500">{s.duracion} min • {formatPrice(s.precio)}</div>
+                        </div>
+                        <div>
+                          <button
+                            className="text-red-600 hover:underline text-sm"
+                            onClick={() => {
+                              const filtered = (config.tipos_servicio || []).filter(x => x.key !== s.key)
+                              setConfig(prev => ({ ...prev, tipos_servicio: filtered }))
+                            }}
+                          >Eliminar</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <input
+                      type="text"
+                      placeholder="Nombre del servicio (ej: Corte Rapido)"
+                      value={newServiceName}
+                      onChange={(e) => setNewServiceName(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Precio (₡)"
+                      value={newServicePrice}
+                      onChange={(e) => setNewServicePrice(parseInt(e.target.value) || 0)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Duración (min)"
+                      value={newServiceDuration}
+                      onChange={(e) => setNewServiceDuration(parseInt(e.target.value) || 0)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => {
+                        if (!newServiceName) return toast.error('Ingrese nombre del servicio')
+                        const key = newServiceName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_\-]/g, '').slice(0, 40)
+                        const exists = (config.tipos_servicio || []).some(s => s.key === key)
+                        const finalKey = exists ? `${key}_${Date.now()}` : key
+                        const newService = { key: finalKey, label: newServiceName.trim(), precio: newServicePrice || 0, duracion: newServiceDuration || 30 }
+                        setConfig(prev => ({ ...prev, tipos_servicio: [...(prev.tipos_servicio || []), newService] }))
+                        setNewServiceName('')
+                        setNewServicePrice(0)
+                        setNewServiceDuration(30)
+                      }}
+                      className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                    >Agregar Servicio</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* WhatsApp y Comunicaciones */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <MessageCircle className="h-5 w-5 text-green-600" />

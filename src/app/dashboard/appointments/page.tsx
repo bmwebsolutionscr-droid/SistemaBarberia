@@ -29,7 +29,7 @@ interface AppointmentFormData {
   fecha: string
   hora: string
   barberId: string
-  tipo_servicio: 'corte' | 'corte_barba'
+  tipo_servicio: string
   estado: 'programada' | 'confirmada' | 'cancelada' | 'completada'
   notas?: string
 }
@@ -489,7 +489,7 @@ export default function AppointmentsPage() {
       )
 
       if (hasConflict) {
-        const serviceTypeText = formData.tipo_servicio === 'corte_barba' ? 'Corte + Barba' : 'Corte Normal'
+        const serviceTypeText = config?.tipos_servicio?.find(s => s.key === formData.tipo_servicio)?.label || formData.tipo_servicio
         toast.error(`Conflicto de horario: Ya hay una cita programada que se solapa con ${serviceTypeText} (${serviceDuration} min)`)
         return false
       }
@@ -858,16 +858,15 @@ export default function AppointmentsPage() {
                     </label>
                     <select
                       value={formData.tipo_servicio}
-                      onChange={(e) => setFormData({...formData, tipo_servicio: e.target.value as 'corte' | 'corte_barba', hora: editingAppointment ? formData.hora : ''})}
+                      onChange={(e) => setFormData({...formData, tipo_servicio: e.target.value, hora: editingAppointment ? formData.hora : ''})}
                       className="input-field h-12 text-base"
                       required
                     >
-                      <option value="corte">
-                        Corte Normal ({config ? `${config.duracion_cita} min - ${formatPrice(config.precio_corte_adulto)}` : '30 min'})
-                      </option>
-                      <option value="corte_barba">
-                        Corte + Barba ({config ? `${config.duracion_corte_barba} min - ${formatPrice(config.precio_combo)}` : '60 min'})
-                      </option>
+                      {(config?.tipos_servicio || []).map(s => (
+                        <option key={s.key} value={s.key}>
+                          {s.label} ({s.duracion} min - {formatPrice(s.precio)})
+                        </option>
+                      ))}
                     </select>
                   </div>
 

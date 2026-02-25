@@ -127,7 +127,7 @@ export interface Database {
           duracion: number | null
           precio: number | null
           estado: 'programada' | 'confirmada' | 'cancelada' | 'completada'
-          tipo_servicio: 'corte' | 'corte_barba'
+          tipo_servicio: string
           duracion_minutos: number
           notas?: string
           created_at: string
@@ -143,7 +143,7 @@ export interface Database {
           duracion?: number | null
           precio?: number | null
           estado?: 'programada' | 'confirmada' | 'cancelada' | 'completada'
-          tipo_servicio?: 'corte' | 'corte_barba'
+          tipo_servicio?: string
           duracion_minutos?: number
           notas?: string
           created_at?: string
@@ -159,7 +159,7 @@ export interface Database {
           duracion?: number | null
           precio?: number | null
           estado?: 'programada' | 'confirmada' | 'cancelada' | 'completada'
-          tipo_servicio?: 'corte' | 'corte_barba'
+          tipo_servicio?: string
           duracion_minutos?: number
           notas?: string
           created_at?: string
