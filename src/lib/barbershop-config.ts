@@ -21,6 +21,12 @@ export interface BarbershopConfig {
 }
 
 // Configuración por defecto
+// Default services list
+const defaultServiceTypes = [
+  { key: 'corte', label: 'Corte Normal', precio: 15000, duracion: 30 },
+  { key: 'corte_barba', label: 'Corte + Barba', precio: 20000, duracion: 60 }
+]
+
 const defaultConfig: BarbershopConfig = {
   hora_apertura: '08:00',
   hora_cierre: '18:00',
@@ -37,13 +43,11 @@ const defaultConfig: BarbershopConfig = {
   whatsapp_activo: true,
   whatsapp_numero: null,
   tiempo_cancelacion: 120 // 2 horas en minutos
+  ,
+  tipos_servicio: defaultServiceTypes
 }
 
-// Default services list
-const defaultServiceTypes = [
-  { key: 'corte', label: 'Corte Normal', precio: 15000, duracion: 30 },
-  { key: 'corte_barba', label: 'Corte + Barba', precio: 20000, duracion: 60 }
-]
+// Default services list (defined above)
 
 export async function getBarbershopConfig(): Promise<BarbershopConfig> {
   try {
