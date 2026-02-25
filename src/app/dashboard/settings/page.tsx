@@ -38,6 +38,7 @@ interface ConfigurationData {
   
   // Servicios y duraciones (en minutos)
   duracion_cita: number
+  duracion_corte_barba?: number
   
   // Precios
   precio_corte_adulto: number
@@ -80,6 +81,7 @@ export default function Configuration() {
     almuerzo_activo: true,
     dias_laborales: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'],
     duracion_cita: 30,
+    duracion_corte_barba: 60,
     precio_corte_adulto: 15000,
     precio_corte_nino: 10000,
     precio_barba: 8000,
