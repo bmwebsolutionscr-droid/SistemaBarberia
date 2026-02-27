@@ -189,7 +189,7 @@ export function generateTimeSlots(config: BarbershopConfig): string[] {
 
     while (isBefore(currentTime, endTime) || currentTime.getTime() === endTime.getTime()) {
       const timeString = format(currentTime, 'HH:mm')
-      
+
       // Verificar si el slot actual está dentro del horario de almuerzo
       let isLunchTime = false
       if (lunchStart && lunchEnd) {
@@ -198,18 +198,17 @@ export function generateTimeSlots(config: BarbershopConfig): string[] {
         // Usamos < para excluir la hora exacta de fin del almuerzo (para que puedan agendar justo cuando termina)
         isLunchTime = (currentTime.getTime() >= lunchStart.getTime()) && 
                      (currentTime.getTime() < lunchEnd.getTime())
-        
-        // Debug detallado para este slot específico
-        // Slot en horario de almuerzo (log eliminado)
       }
-      
+
       // Solo agregar el slot si NO está en horario de almuerzo
-        if (!isLunchTime) {
+      // y si el minuto es :00 o :30 para evitar confusiones
+      if (!isLunchTime) {
+        const minutes = currentTime.getMinutes()
+        if (minutes === 0 || minutes === 30) {
           slots.push(timeString)
-        } else {
-          // slot excluido por almuerzo (log eliminado)
         }
-      
+      }
+
       currentTime = addMinutes(currentTime, step)
     }
   } catch (error) {
