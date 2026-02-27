@@ -21,6 +21,12 @@ export interface BarbershopConfig {
 }
 
 // Configuración por defecto
+// Default services list
+const defaultServiceTypes = [
+  { key: 'corte', label: 'Corte Normal', precio: 15000, duracion: 30 },
+  { key: 'corte_barba', label: 'Corte + Barba', precio: 20000, duracion: 60 }
+]
+
 const defaultConfig: BarbershopConfig = {
   hora_apertura: '08:00',
   hora_cierre: '18:00',
@@ -37,13 +43,11 @@ const defaultConfig: BarbershopConfig = {
   whatsapp_activo: true,
   whatsapp_numero: null,
   tiempo_cancelacion: 120 // 2 horas en minutos
+  ,
+  tipos_servicio: defaultServiceTypes
 }
 
-// Default services list
-const defaultServiceTypes = [
-  { key: 'corte', label: 'Corte Normal', precio: 15000, duracion: 30 },
-  { key: 'corte_barba', label: 'Corte + Barba', precio: 20000, duracion: 60 }
-]
+// Default services list (defined above)
 
 export async function getBarbershopConfig(): Promise<BarbershopConfig> {
   try {
@@ -185,7 +189,7 @@ export function generateTimeSlots(config: BarbershopConfig): string[] {
 
     while (isBefore(currentTime, endTime) || currentTime.getTime() === endTime.getTime()) {
       const timeString = format(currentTime, 'HH:mm')
-      
+
       // Verificar si el slot actual está dentro del horario de almuerzo
       let isLunchTime = false
       if (lunchStart && lunchEnd) {
@@ -194,18 +198,17 @@ export function generateTimeSlots(config: BarbershopConfig): string[] {
         // Usamos < para excluir la hora exacta de fin del almuerzo (para que puedan agendar justo cuando termina)
         isLunchTime = (currentTime.getTime() >= lunchStart.getTime()) && 
                      (currentTime.getTime() < lunchEnd.getTime())
-        
-        // Debug detallado para este slot específico
-        // Slot en horario de almuerzo (log eliminado)
       }
-      
+
       // Solo agregar el slot si NO está en horario de almuerzo
-        if (!isLunchTime) {
+      // y si el minuto es :00 o :30 para evitar confusiones
+      if (!isLunchTime) {
+        const minutes = currentTime.getMinutes()
+        if (minutes === 0 || minutes === 30) {
           slots.push(timeString)
-        } else {
-          // slot excluido por almuerzo (log eliminado)
         }
-      
+      }
+
       currentTime = addMinutes(currentTime, step)
     }
   } catch (error) {
